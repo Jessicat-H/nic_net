@@ -1,8 +1,11 @@
 #include "nic_lib.h"
 #include <sys/queue.h>
 #include <sys/time.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <unistd.h>
 
 struct msgEntry {
 	int port;
@@ -24,12 +27,34 @@ void broadcastTable() {
 	output[2] = UINT8_MAX;
 	output[3] = 'u';
 	int j=0; //indexing through datatable
-	for (int i=4; i<rtHeight*3+4;i+=3) {
+	int i;
+	for (i=4; i<rtHeight*3+4;i+=3) {
 		output[i] = routeTable[0][j];
 		output[i+1] = routeTable[1][j];
 		output[i+2] = routeTable[2][j];
 		j++;
 	}
+	broadcast(output,rtHeight*3+4);
+}
+
+void ping() {
+	uint8_t output[5];
+	output[0] = myID;
+	output[1] = 0;
+	output[2] = UINT8_MAX;
+	output[3] = 'p';
+	output[4] = '\0';
+	broadcast(output,5);
+}
+
+void newHere() {
+	uint8_t output[5];
+	output[0] = myID;
+	output[1] = 0;
+	output[2] = UINT8_MAX;
+	output[3] = 'n';
+	output[4] = '\0';
+	broadcast(output,5);
 }
 
 //TODO update accoridng to tony's revision
@@ -43,20 +68,22 @@ void recieveMessage(uint8_t* message, int port) {
 	uint8_t fromID = neighborTable[0][port-1];
 
 	uint8_t tableChanged = 0;
+
+	struct timespec time;
 	switch (msgType){
 		case 'p':
+			printf("Recieved ping!\n");
 			//ping
-			struct timespec time;
 			clock_gettime(CLOCK_BOOTTIME, &time);
 			//set last heard to now
 			neighborTable[1][port-1] = time.tv_sec;
 			break;
 	
 		case 'n':
+			printf("Recieved new neighbor!\n");
 			//new pi started up. assuming they are our neighbor
 			neighborTable[0][port-1] = senderID;
 
-			struct timespec time;
 			clock_gettime(CLOCK_BOOTTIME, &time);
 			//set last heard to now
 			neighborTable[1][port-1] = time.tv_sec;
@@ -72,7 +99,7 @@ void recieveMessage(uint8_t* message, int port) {
 
 		case 'u':
 			//updated table
-			
+			printf("Recieved Updated Table\n");
 			for (int i= 5;i<numBytes+1;i+=3) {
 				uint8_t id = message[i];
 				uint8_t next = message[i+1]; 
@@ -103,6 +130,12 @@ void recieveMessage(uint8_t* message, int port) {
 
 		case 'a':
 			//application layer data. should forward here.
+			if(destID == myID) {
+				printf("Message for me:\n");
+			}
+			else {
+				printf("Message for %d\n",destID);
+			}
 			for (int i= 5;i<numBytes+1;i++) {
 				printf("%c",message[i]);
 			}
@@ -139,7 +172,9 @@ int main() {
 
 	//get unique id
 	printf("Enter unique identifier (0-255): ");
-	scanf("%u",&myID);
+	char input[4];
+	fgets(input,3,stdin);
+	myID = (uint8_t) atoi(input);
 
 	//register callback
 	nic_lib_init(recieveMessage);
@@ -151,6 +186,8 @@ int main() {
 			TAILQ_FOREACH(mp, &head, msgEntries)
 				sendMessage(mp->port,mp->msg, mp->length);
 		}
+		sleep(1);
+		ping();
 	}
 	return 0;
 }
