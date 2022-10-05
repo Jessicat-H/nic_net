@@ -46,6 +46,7 @@ void updateNeighborsFromPing(int port, uint8_t senderID) {
 	clock_gettime(CLOCK_BOOTTIME, &time);
 	if(neighbors[port][0] != senderID) {
 		printf("Updating sender ID for port %d\n",port);
+		neighbors[port][0] = senderID;
 	}
 	neighbors[port][1] = time.tv_sec;
 }
@@ -144,7 +145,7 @@ void ping() {
 	//destination: special character for all neighbors
 	message[2] = UINT8_MAX;
 	//message type: table
-	message[3] = 'u';
+	message[3] = 'p';
 	//send it along!
 	message[4] = '\0';
 	broadcast(message, numBytes);
@@ -178,38 +179,101 @@ void messageReceived(uint8_t* message, int port) {
 			break;
 		case('u'): //updated routing table from a neighbor
 			printf("Received updated table\n");
-			if(updateTableFromTable(&message[5],byteCount-5, senderID)) {
+			if(updateTableFromTable(&message[5],byteCount-5,senderID)) {
 				broadcastTable();
 			}
 			break;
 		case('a'): //application message
 			printf("Received app message\n");
 			break;
+		case('d'):
+			printf("Received delete signal\n");
+			if(updateTableFromDelete(message[5])) { //if delete results in an updated table
+				sendDelete()
+			}
+			break;
+	}
+}
+
+/**
+ * I'm new here!
+ * Sends a message to all neighbors to let them know that this node exists
+ */
+void new_here() {
+	uint8_t numBytes = 5;
+	uint8_t message[numBytes];
+	//Message structure for this network: sender ID, hop count, destination ID, message type, [message]
+	//sender ID
+	message[0] = id;
+	//hop count
+	message[1] = 0;
+	//destination: special character for all neighbors
+	message[2] = UINT8_MAX;
+	//message type: table
+	message[3] = 'n';
+	//send it along!
+	message[4] = '\0';
+	broadcast(message, numBytes);
+}
+
+/**
+ * Send a message to tell the network we've lost our connection to a node
+ * @param the node whose connection has been lost
+ */
+void sendDelete(uint8_t nodeID) {
+	uint8_t numBytes = 6;
+	uint8_t message[numBytes];
+	//Message structure for this network: sender ID, hop count, destination ID, message type, [message]
+	//sender ID
+	message[0] = id;
+	//hop count
+	message[1] = 0;
+	//destination: special character for all neighbors
+	message[2] = UINT8_MAX;
+	//message type: table
+	message[3] = 'd';
+	//send it along!
+	message[4] = 'nodeID';
+	message[5] = '\0';
+	broadcast(message, numBytes);
+}
+
+void refresh_neighbors() {
+	for (int i = 0; i < 4; i++) {
+		if (neighbors[i][])
 	}
 }
 
 int main() {
+	struct timespec time;
+	int last_ping;
 	//initialize neighbors table
 	for (int i = 0; i < 4; i++) {
 		for (int j = 0; j < 2; j++) {
 			neighbors[i][j] = 0;
 		}
 	}
-	printf("Enter unique identifier: ");
-	char IDinput[3];
+	printf("Enter unique identifier (0-255): ");
+	char IDinput[4];
 	fgets(IDinput, 3, stdin);
 	id = (uint8_t) atoi(IDinput);
 	//initialize message queue
 	TAILQ_INIT(&head);
-	routingTable = malloc(sizeof(uint8_t)*3);
-	routingTableLength = 3;
+	routingTableLength = 0;
 	nic_lib_init(messageReceived);
+	new_here();
+	last_ping = 0;
 	while(1) {
+		//send all pending messages
 		sendFromQueue();
-		//update table depending on lack of pings
-		//ping
-		sleep(1);
-		ping();
+		clock_gettime(CLOCK_BOOTTIME, &time);
+		//every 5 seconds, let everyone know we're still here
+		if (time.tv_sec - last_ping >= 5) {
+			ping();
+			last_ping = time.tv_sec;
+			//update table depending on lack of pings
+			refresh_neighbors();
+		}
 	}
 	free(routingTable);
 }
