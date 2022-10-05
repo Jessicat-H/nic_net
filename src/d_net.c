@@ -7,6 +7,8 @@
 #include <stdint.h>
 #include <unistd.h>
 
+static int MAX_NET_SIZE = 18;
+
 struct msgEntry {
 	int port;
 	int length;
@@ -15,7 +17,7 @@ struct msgEntry {
 };
 
 //set up datatables
-uint8_t routeTable[3][18]; //id, next step towards, hops on this path
+uint8_t routeTable[3][MAX_NET_SIZE]; //id, next step towards, hops on this path
 int rtHeight = 0;
 int neighborTable[2][4]; //id, tick last heard. port 1 is idx 0, p2 if idx1
 uint8_t myID;
@@ -54,6 +56,16 @@ void newHere() {
 	output[2] = UINT8_MAX;
 	output[3] = 'n';
 	output[4] = '\0';
+	broadcast(output,5);
+}
+
+void deleteRoute(uint8_t deletedID) {
+	uint8_t output[5];
+	output[0] = myID;
+	output[1] = 0;
+	output[2] = UINT8_MAX;
+	output[3] = 'd';
+	output[4] = deletedID;
 	broadcast(output,5);
 }
 
@@ -128,6 +140,33 @@ void recieveMessage(uint8_t* message, int port) {
 
 			break;
 
+		case 'd':
+			uint8_t deletedId = message[5];
+			if (deletedID == myID) {
+				//oh no they think i'm dead!
+				newHere();
+			}
+			for (int i =0; i<rtHeight; i++) {
+				if (routeTable[0][i]==deletedId) {
+					if (routeTable[1][i]==senderID) {
+						//delete entry and shift up
+						rtHeight--;
+						for (int j = i; i<rtHeight; i++) {
+							routeTable[0][i] = routeTable[0][i+1];
+							routeTable[1][i] = routeTable[1][i+1];
+							routeTable[2][i] = routeTable[2][i+1];
+						}
+						deleteRoute(deletedID);
+						//broadcasting tbl doesnt do anything on delete, so don't bother
+					}
+					else {
+						tableChanged=1;
+					}
+					break; //don't complete loop.
+				}
+			}
+			break;
+
 		case 'a':
 			//application layer data. should forward here.
 			if(destID == myID) {
@@ -160,7 +199,7 @@ int main() {
 
 	//0 out data tables
 	for (int i =0;i<3;i++) {
-		for (int j=0; j<18; j++) {
+		for (int j=0; j<MAX_NET_SIZE; j++) {
 			routeTable[i][j] =0;
 		}
 	}
