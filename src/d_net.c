@@ -6,26 +6,43 @@
 
 struct msgEntry {
 	int port;
-	char* msg;
+	int length;
+	uint8_t* msg;
 	TAILQ_ENTRY(msgEntry) msgEntries;
 };
 
 //set up datatables
-char routeTable[3][18]; //id, next step towards, hops on this path
+uint8_t routeTable[3][18]; //id, next step towards, hops on this path
 int rtHeight = 0;
 int neighborTable[2][4]; //id, tick last heard. port 1 is idx 0, p2 if idx1
+uint8_t myID;
+
+void broadcastTable() {
+	uint8_t output[rtHeight*3+4];
+	output[0] = myID;
+	output[1] = 0;
+	output[2] = UINT8_MAX;
+	output[3] = 'u';
+	int j=0; //indexing through datatable
+	for (int i=4; i<rtHeight*3+4;i+=3) {
+		output[i] = routeTable[0][j];
+		output[i+1] = routeTable[1][j];
+		output[i+2] = routeTable[2][j];
+		j++;
+	}
+}
 
 //TODO update accoridng to tony's revision
-void recieveMessage(char* message, int port) {
+void recieveMessage(uint8_t* message, int port) {
 	//decode header. may change/ be wrong
-	char numBytes = message[0];
-	char senderID = message[1];
-	char hopCount = message[2];
-	char destID = message[3];
-	char msgType = message[4]; 
-	int fromID = neighborTable[0][port-1];
+	uint8_t numBytes = message[0];
+	uint8_t senderID = message[1];
+	uint8_t hopCount = message[2];
+	uint8_t destID = message[3];
+	uint8_t msgType = message[4]; 
+	uint8_t fromID = neighborTable[0][port-1];
 
-	uint8_t tableChanged =0;
+	uint8_t tableChanged = 0;
 	switch (msgType){
 		case 'p':
 			//ping
@@ -119,6 +136,11 @@ int main() {
 			neighborTable[i][j] =0;
 		}
 	}
+
+	//get unique id
+	printf("Enter unique identifier (0-255): ");
+	scanf("%u",&myID);
+
 	//register callback
 	nic_lib_init(recieveMessage);
 
@@ -127,7 +149,7 @@ int main() {
 		if (!TAILQ_EMPTY(&head)) {
 			struct msgEntry *mp;
 			TAILQ_FOREACH(mp, &head, msgEntries)
-				sendMessage(mp->port,mp->msg);
+				sendMessage(mp->port,mp->msg, mp->length);
 		}
 	}
 	return 0;
