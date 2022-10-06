@@ -36,7 +36,7 @@ int whatPort(uint8_t destID) {
 	int outPort; //find what port is that id
 	for (int i=0; i<4; i++) {
 		if (neighborTable[0][i] == nextStep) {
-			outPort = i+1; //account for index
+			outPort = i;
 			break;
 		}
 	}
@@ -122,7 +122,7 @@ void recieveMessage(uint8_t* message, int port) {
 	uint8_t hopCount = message[2];
 	uint8_t destID = message[3];
 	uint8_t msgType = message[4]; 
-	uint8_t fromID = neighborTable[0][port-1];
+	uint8_t fromID = neighborTable[0][port];
 
 	uint8_t tableChanged = 0;
 
@@ -133,17 +133,17 @@ void recieveMessage(uint8_t* message, int port) {
 			//ping
 			clock_gettime(CLOCK_BOOTTIME, &time);
 			//set last heard to now
-			neighborTable[1][port-1] = time.tv_sec;
+			neighborTable[1][port] = time.tv_sec;
 			break;
 	
 		case 'n':
 			printf("Recieved new neighbor!\n");
 			//new pi started up. assuming they are our neighbor
-			neighborTable[0][port-1] = senderID;
+			neighborTable[0][port] = senderID;
 
 			clock_gettime(CLOCK_BOOTTIME, &time);
 			//set last heard to now
-			neighborTable[1][port-1] = time.tv_sec;
+			neighborTable[1][port] = time.tv_sec;
 
 			//set routing table
 			routeTable[0][rtHeight] = senderID;
@@ -185,7 +185,8 @@ void recieveMessage(uint8_t* message, int port) {
 
 			break;
 
-		case 'd':
+		case 'd': ;
+			printf("recieved delete message\n");
 			uint8_t deletedId = message[5];
 			if (deletedID == myID) {
 				//oh no they think i'm dead!
@@ -303,8 +304,8 @@ int main() {
 		struct timespec time;
 		clock_gettime(CLOCK_BOOTTIME, &time);
 		for (int i=0; i<4; i++) {
-
-			if ((time.tv_sec - neighborTable[1][i])>120) { //they're dead!!
+			//if they every were alive, are they still?
+			if ((time.tv_sec - neighborTable[1][i])>120 && neighborTable[1][i] > 0) { //they're dead!!
 				uint8_t deletedID = neighborTable[0][i];
 				deleteRoute(deletedID);
 				for (int i =0; i<rtHeight; i++) {
