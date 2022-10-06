@@ -22,6 +22,9 @@ int rtHeight = 0;
 int neighborTable[2][4]; //id, tick last heard. port 1 is idx 0, p2 if idx1
 uint8_t myID;
 
+TAILQ_HEAD(tailhead, msgEntry);
+struct tailhead head;
+
 void broadcastTable() {
 	uint8_t output[rtHeight*3+4];
 	output[0] = myID;
@@ -151,16 +154,16 @@ void recieveMessage(uint8_t* message, int port) {
 					if (routeTable[1][i]==senderID) {
 						//delete entry and shift up
 						rtHeight--;
-						for (int j = i; i<rtHeight; i++) {
-							routeTable[0][i] = routeTable[0][i+1];
-							routeTable[1][i] = routeTable[1][i+1];
-							routeTable[2][i] = routeTable[2][i+1];
+						for (int j = i; j<rtHeight; j++) {
+							routeTable[0][j] = routeTable[0][j+1];
+							routeTable[1][j] = routeTable[1][j+1];
+							routeTable[2][j] = routeTable[2][j+1];
 						}
 						deleteRoute(deletedID);
 						//broadcasting tbl doesnt do anything on delete, so don't bother
 					}
 					else {
-						tableChanged=1;
+						tableChanged = 1;
 					}
 					break; //don't complete loop.
 				}
@@ -174,6 +177,33 @@ void recieveMessage(uint8_t* message, int port) {
 			}
 			else {
 				printf("Message for %d\n",destID);
+				struct msgEntry outEntry;
+				uint8_t output[numBytes];
+				output[0] = senderID;
+				output[1] = hopCount+1;
+				output[2] = destID;
+				output[3] = msgType;
+				for (int i=5; i<numBytes; i++) {
+					output[i-1] = message[i];
+				}
+				uint8_t nextStep; //find id of next step
+				for (int i=0; i<rtHeight; i++) {
+					if (routeTable[0][i] == destID) {
+						nextStep = routeTable[1][i];
+						break;
+					}
+				}
+				uint8_t outPort; //find what port is that id
+				for (int i=0; i<4; i++) {
+					if (neighborTable[0][i] == nextStep) {
+						outPort = i+1; //account for index
+						break;
+					}
+				}
+				outEntry.port = outPort;
+				outEntry.length = numBytes;
+				outEntry.msg = output;
+				TAILQ_INSERT_TAIL(&head, &outEntry, msgEntries);
 			}
 			for (int i= 5;i<numBytes+1;i++) {
 				printf("%c",message[i]);
@@ -190,11 +220,10 @@ void recieveMessage(uint8_t* message, int port) {
 	}
 }
 
-TAILQ_HEAD(tailhead, msgEntry);
+
 
 int main() {
 	//build FIFO Queue to hold messages before they are sent
-	struct tailhead head;
 	TAILQ_INIT(&head);
 
 	//0 out data tables
@@ -218,6 +247,7 @@ int main() {
 	//register callback
 	nic_lib_init(recieveMessage);
 
+	int secSincePing;
 	while (1) {
 		//if there are messages to be sent, send them (FIFO)
 		if (!TAILQ_EMPTY(&head)) {
@@ -225,8 +255,34 @@ int main() {
 			TAILQ_FOREACH(mp, &head, msgEntries)
 				sendMessage(mp->port,mp->msg, mp->length);
 		}
-		sleep(1);
-		ping();
+		sleep(1); //less than ideal, msgs can only go out every sec.
+		secSincePing++
+
+		if (secSincePing>90) {
+			ping();
+		}
+		for (int i=0; i<4; i++) {
+			if (neighborTable[1][i]>120) { //they're dead!!
+				uint8_t deletedID = neighborTable[0][i];
+				deleteRoute(deletedID);
+				for (int i =0; i<rtHeight; i++) {
+					if (routeTable[0][i]==deletedID) {
+						if (routeTable[1][i]==deletedID) {
+							//delete entry and shift up
+							rtHeight--;
+							for (int j = i; j<rtHeight; j++) {
+								routeTable[0][j] = routeTable[0][j+1];
+								routeTable[1][j] = routeTable[1][j+1];
+								routeTable[2][j] = routeTable[2][j+1];
+							}
+							deleteRoute(deletedID);
+							//broadcasting tbl doesnt do anything on delete, so don't bother
+						}
+					break; //don't complete loop.
+					}
+				}
+			}
+		}
 	}
 	return 0;
 }
