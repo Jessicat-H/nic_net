@@ -97,7 +97,7 @@ void deleteRoute(uint8_t deletedID) {
  * @param destID - Unique identifier to send message to
  */
 void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
-	uint8_t output[4+length];
+	uint8_t *output = malloc(sizeof(uint8_t)*(4+length));
 	output[0] = myID;
 	output[1] = 0;
 	output[2] = destID;
@@ -107,7 +107,7 @@ void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 	}
 
 	struct msgEntry outEntry;
-	outEntry.msg = msg;
+	outEntry.msg = output;
 	outEntry.length = 4+length;
 	outEntry.port = whatPort(destID);
 
@@ -286,6 +286,10 @@ int main() {
 		if (!TAILQ_EMPTY(&head)) {
 			struct msgEntry *mp;
 			TAILQ_FOREACH(mp, &head, msgEntries)
+				for (int i=0;i<9;i++) { //TODO remove
+					printf("%d",mp->msg[i]);
+				}
+				
 				sendMessage(mp->port,mp->msg, mp->length);
 		}
 		sleep(1); //less than ideal, msgs can only go out every sec.
