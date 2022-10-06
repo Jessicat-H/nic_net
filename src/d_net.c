@@ -205,7 +205,6 @@ void recieveMessage(uint8_t* message, int port) {
 			}
 			else {
 				printf("Message for %d\n",destID);
-				struct msgEntry outEntry;
 				uint8_t output[numBytes];
 				output[0] = senderID;
 				output[1] = hopCount+1;
@@ -216,9 +215,6 @@ void recieveMessage(uint8_t* message, int port) {
 				}
 				
 				int outPort = whatPort(destID);
-				outEntry.port = outPort;
-				outEntry.length = numBytes;
-				outEntry.msg = output;
 				sendMessage(outPort,output, numBytes);
 			}
 			for (int i= 5;i<numBytes+1;i++) {
