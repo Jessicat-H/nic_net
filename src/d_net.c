@@ -71,6 +71,23 @@ void deleteRoute(uint8_t deletedID) {
 	output[4] = deletedID;
 	broadcast(output,5);
 }
+/*
+ * Sends a packet with the 'a' type, to hold application layer data, as opposed to network layer
+ * communications.
+ * @param msg - pointer to an array of uint8_t bytes to be transmitted
+ * @param length - how many bytes to read from msg
+ * @param destID - Unique identifier to send message to
+ */
+void sendAppMsg(uint8_t msg*, int length, uint8_t destID) {
+	uint8_t output[4+length];
+	output[0] = myID;
+	output[1] = 0;
+	output[2] = destID;
+	output[3] = 'a';
+	for (int i=0; i<length; i++) {
+		output[i+4] = msg[i];
+	}
+}
 
 //TODO update accoridng to tony's revision
 void recieveMessage(uint8_t* message, int port) {
@@ -260,9 +277,13 @@ int main() {
 
 		if (secSincePing>90) {
 			ping();
+			secSincePing =0;
 		}
+		struct timespec time;
+		clock_gettime(CLOCK_BOOTTIME, &time);
 		for (int i=0; i<4; i++) {
-			if (neighborTable[1][i]>120) { //they're dead!!
+
+			if ((time.tv_sec - neighborTable[1][i])>120) { //they're dead!!
 				uint8_t deletedID = neighborTable[0][i];
 				deleteRoute(deletedID);
 				for (int i =0; i<rtHeight; i++) {
