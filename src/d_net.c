@@ -25,6 +25,24 @@ uint8_t myID;
 TAILQ_HEAD(tailhead, msgEntry);
 struct tailhead head;
 
+int whatPort(uint8_t destID) {
+	uint8_t nextStep; //find id of next step
+	for (int i=0; i<rtHeight; i++) {
+		if (routeTable[0][i] == destID) {
+			nextStep = routeTable[1][i];
+			break;
+		}
+	}
+	int outPort; //find what port is that id
+	for (int i=0; i<4; i++) {
+		if (neighborTable[0][i] == nextStep) {
+			outPort = i+1; //account for index
+			break;
+		}
+	}
+	return outPort;
+}
+
 void broadcastTable() {
 	uint8_t output[rtHeight*3+4];
 	output[0] = myID;
@@ -87,6 +105,13 @@ void sendAppMsg(uint8_t msg*, int length, uint8_t destID) {
 	for (int i=0; i<length; i++) {
 		output[i+4] = msg[i];
 	}
+
+	struct msgEntry outEntry;
+	outEntry.msg = msg;
+	outEntry.length = 4+length;
+	outEntry.port = whatPort(destID);
+
+	TAILQ_INSERT_TAIL(&head, &outEntry, msgEntries);
 }
 
 //TODO update accoridng to tony's revision
@@ -203,20 +228,8 @@ void recieveMessage(uint8_t* message, int port) {
 				for (int i=5; i<numBytes; i++) {
 					output[i-1] = message[i];
 				}
-				uint8_t nextStep; //find id of next step
-				for (int i=0; i<rtHeight; i++) {
-					if (routeTable[0][i] == destID) {
-						nextStep = routeTable[1][i];
-						break;
-					}
-				}
-				uint8_t outPort; //find what port is that id
-				for (int i=0; i<4; i++) {
-					if (neighborTable[0][i] == nextStep) {
-						outPort = i+1; //account for index
-						break;
-					}
-				}
+				
+				int outPort = whatPort(destID);
 				outEntry.port = outPort;
 				outEntry.length = numBytes;
 				outEntry.msg = output;
@@ -264,6 +277,8 @@ int main() {
 	//register callback
 	nic_lib_init(recieveMessage);
 
+	newHere();
+
 	int secSincePing;
 	while (1) {
 		//if there are messages to be sent, send them (FIFO)
@@ -278,6 +293,12 @@ int main() {
 		if (secSincePing>90) {
 			ping();
 			secSincePing =0;
+		}
+		if(secSincePing>60) {
+			for (int i=0; i<4 ; i++) {
+				sendAppMsg(&"hello",6,neighborTable[0][i]);
+			}
+			
 		}
 		struct timespec time;
 		clock_gettime(CLOCK_BOOTTIME, &time);
