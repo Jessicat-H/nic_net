@@ -9,21 +9,11 @@
 
 #define MAX_NET_SIZE 18
 
-struct msgEntry {
-	int port;
-	int length;
-	uint8_t* msg;
-	TAILQ_ENTRY(msgEntry) msgEntries;
-};
-
 //set up datatables
 uint8_t routeTable[3][MAX_NET_SIZE]; //id, next step towards, hops on this path
 int rtHeight = 0;
 int neighborTable[2][4]; //id, tick last heard. port 1 is idx 0, p2 if idx1
 uint8_t myID;
-
-TAILQ_HEAD(tailhead, msgEntry);
-struct tailhead head;
 
 int whatPort(uint8_t destID) {
 	uint8_t nextStep; //find id of next step
@@ -105,13 +95,8 @@ void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 	for (int i=0; i<length; i++) {
 		output[i+4] = msg[i];
 	}
-
-	struct msgEntry outEntry;
-	outEntry.msg = output;
-	outEntry.length = 4+length;
-	outEntry.port = whatPort(destID);
-
-	TAILQ_INSERT_TAIL(&head, &outEntry, msgEntries);
+	//TODO mem leak
+	sendMessage(whatPort(destID),output, length+4);
 }
 
 //TODO update accoridng to tony's revision
@@ -234,7 +219,7 @@ void recieveMessage(uint8_t* message, int port) {
 				outEntry.port = outPort;
 				outEntry.length = numBytes;
 				outEntry.msg = output;
-				TAILQ_INSERT_TAIL(&head, &outEntry, msgEntries);
+				sendMessage(outPort,output, numBytes);
 			}
 			for (int i= 5;i<numBytes+1;i++) {
 				printf("%c",message[i]);
@@ -254,8 +239,6 @@ void recieveMessage(uint8_t* message, int port) {
 
 
 int main() {
-	//build FIFO Queue to hold messages before they are sent
-	TAILQ_INIT(&head);
 
 	//0 out data tables
 	for (int i =0;i<3;i++) {
@@ -282,16 +265,6 @@ int main() {
 
 	int secSincePing;
 	while (1) {
-		//if there are messages to be sent, send them (FIFO)
-		if (!TAILQ_EMPTY(&head)) {
-			struct msgEntry *mp;
-			TAILQ_FOREACH(mp, &head, msgEntries)
-				for (int i=0;i<9;i++) { //TODO remove
-					printf("%d",mp->msg[i]);
-				}
-				
-				sendMessage(mp->port,mp->msg, mp->length);
-		}
 		sleep(1); //less than ideal, msgs can only go out every sec.
 		secSincePing++;
 
