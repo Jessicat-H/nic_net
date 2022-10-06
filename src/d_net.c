@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <unistd.h>
 
-static int MAX_NET_SIZE = 18;
+#define MAX_NET_SIZE 18
 
 struct msgEntry {
 	int port;
@@ -96,7 +96,7 @@ void deleteRoute(uint8_t deletedID) {
  * @param length - how many bytes to read from msg
  * @param destID - Unique identifier to send message to
  */
-void sendAppMsg(uint8_t msg*, int length, uint8_t destID) {
+void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 	uint8_t output[4+length];
 	output[0] = myID;
 	output[1] = 0;
@@ -187,13 +187,13 @@ void recieveMessage(uint8_t* message, int port) {
 
 		case 'd': ;
 			printf("recieved delete message\n");
-			uint8_t deletedId = message[5];
+			uint8_t deletedID = message[5];
 			if (deletedID == myID) {
 				//oh no they think i'm dead!
 				newHere();
 			}
 			for (int i =0; i<rtHeight; i++) {
-				if (routeTable[0][i]==deletedId) {
+				if (routeTable[0][i]==deletedID) {
 					if (routeTable[1][i]==senderID) {
 						//delete entry and shift up
 						rtHeight--;
@@ -289,7 +289,7 @@ int main() {
 				sendMessage(mp->port,mp->msg, mp->length);
 		}
 		sleep(1); //less than ideal, msgs can only go out every sec.
-		secSincePing++
+		secSincePing++;
 
 		if (secSincePing>90) {
 			ping();
@@ -297,7 +297,13 @@ int main() {
 		}
 		if(secSincePing>60) {
 			for (int i=0; i<4 ; i++) {
-				sendAppMsg(&"hello",6,neighborTable[0][i]);
+				uint8_t helloMsg[5];
+				helloMsg[0]='h';
+				helloMsg[1]='e';
+				helloMsg[2]='l';
+				helloMsg[3]='l';
+				helloMsg[4]='o';
+				sendAppMsg(&helloMsg[0],5,neighborTable[0][i]);
 			}
 			
 		}
