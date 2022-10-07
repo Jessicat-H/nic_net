@@ -8,76 +8,84 @@
 #include <unistd.h>
 #include <string.h>
 
-//struct to put messages in queue
-struct msgEntry {
-	uint8_t* msg;
-	uint8_t len;
-	TAILQ_ENTRY(msgEntry) msgEntries;
-};
-
-//initialize the message queue
-TAILQ_HEAD(tailhead, msgEntry);
-struct tailhead head;
-
-//pointer to message queue
-struct msgEntry *mp;
-
 //attributes for routing
-uint8_t id;
-uint8_t* routingTable;
+uint8_t myID;
+uint8_t routingTable[54];
 int routingTableLength;
 int neighbors[4][2]; //one row per port; columns are id and time since last contacted
 
-void updateTableFromNew(uint8_t senderID, uint8_t hopCount) {
-	for (int i = 0; i < routingTableLength; i+=3) { 
-		if(routingTable[i] == senderID) { //if sender is already in the routing table
-			if(hopCount+1 < routingTable[i+2]) { //if we have found a shorter path
-				routingTable[i+1] = senderID;
-				routingTable[i+2] = hopCount+1;
-				return;
-			}
-		}
-	}
-	routingTable = realloc(routingTable, routingTableLength+3);
-	//destination, next, hop count
-	routingTable[routingTableLength] = senderID;
-	//strcat(routingTable,senderID);
-	//if the node is a neighbor, the easiest way to send a message is just to send it straight there
-	routingTable[routingTableLength+1] = senderID;
-	//strcat(routingTable,senderID);
-	//and it only takes one hop!
-	routingTable[routingTableLength+2] = 1;
-	//strcat(routingTable,1);
-	routingTableLength += 3;
-}
-
-void updateNeighborsFromPing(int port, uint8_t senderID) {
-	struct timespec time;
-	clock_gettime(CLOCK_BOOTTIME, &time);
-	if(neighbors[port][0] != senderID) {
-		printf("Updating sender ID for port %d\n",port);
-		neighbors[port][0] = senderID;
-	}
-	neighbors[port][1] = time.tv_sec;
-}
-
-void broadcastTable() {
-	uint8_t numBytes = 4 + routingTableLength;
+/**
+ * I'm new here!
+ * Sends a message to all neighbors to let them know that this node exists
+ */
+void newHere() {
+	uint8_t numBytes = 5;
 	uint8_t message[numBytes];
 	//Message structure for this network: sender ID, hop count, destination ID, message type, [message]
 	//sender ID
-	message[0] = id;
+	message[0] = myID;
 	//hop count
 	message[1] = 0;
 	//destination: special character for all neighbors
 	message[2] = UINT8_MAX;
 	//message type: table
+	message[3] = 'n';
+	//send it along!
+	message[4] = '\0';
+	broadcast(message, numBytes);
+}
+
+/**
+ * Update routing table based on getting a "I'm new here" message,
+ * which we only receive from neighbors.
+ * @param senderID the ID of the node sending the message
+ */
+void updateTableFromNew(uint8_t senderID) {
+	for (int i = 0; i < routingTableLength; i+=3) { 
+		if(routingTable[i] == senderID) { //if sender is already in the routing table
+			routingTable[i+1] = senderID;
+			routingTable[i+2] = 1;
+			return;
+		}
+	}
+	//destination, next, hop count
+	routingTable[routingTableLength] = senderID;
+	routingTable[routingTableLength+1] = senderID;
+	routingTable[routingTableLength+2] = 1;
+	routingTableLength += 3;
+}
+
+/**
+ * Update table of neighbors based on getting a ping message,
+ * which we only receive from neighbors.
+ * @param port the port the ping came from
+ * @param the ID of the node sending the ping
+ */
+void updateNeighborsFromPing(int port, uint8_t senderID) {
+	struct timespec time;
+	clock_gettime(CLOCK_BOOTTIME, &time);
+	if(neighbors[port][0] != senderID) {
+		printf("Updating sender ID for port %d\n",port);
+		updateTableFromNew(senderID);
+		neighbors[port][0] = senderID;
+	}
+	neighbors[port][1] = time.tv_sec;
+}
+
+/**
+ * broadcast the routing table to all neighbors so they can update their own table
+ */
+void broadcastTable() {
+	uint8_t message[4 + routingTableLength];
+	//sender ID, hop count, destination ID, message type, [message]
+	message[0] = myID;
+	message[1] = 0;
+	message[2] = UINT8_MAX;
 	message[3] = 'u';
-	//the table itself
 	for (int i=0; i<routingTableLength;i++) {
 		message[i+4] = routingTable[i];
 	}
-	broadcast(message, numBytes);
+	broadcast(message, 4 + routingTableLength);
 }
 
 /**
@@ -94,33 +102,14 @@ int portFromID(int id) {
 }
 
 /**
- * Send all messages from the message queue
+ * Update our routing table from a routing table broadcast by another Pi
+ * @param table the routing table sent by the other Pi
+ * @param length the length of the table
+ * @param senderID the ID of the node that sent the table
  */
-void sendFromQueue() {
-	if (!TAILQ_EMPTY(&head)) {
-		TAILQ_FOREACH(mp, &head, msgEntries) {
-			//get the destination
-			uint8_t destID = mp->msg[3];
-			for (int i=0; i<routingTableLength;i+=3) {
-				if(routingTable[i]==destID) {
-					//second char is the next node to pass the message on to
-					int nextNode = (int) routingTable[i+1];
-					int port = portFromID(nextNode);
-					if (port==5) {
-						printf("Neighbor %d not found, cannot send message\n",nextNode);
-					}
-					else{
-						sendMessage(portFromID(nextNode),mp->msg,mp->len);
-					}
-				}
-			}
-		;}
-	}
-}
-
 int updateTableFromTable(uint8_t* table, uint8_t length, uint8_t senderID) {
 	int tableChanged = 0;
-	for (int i= 5;i<length;i+=3) {
+	for (int i= 0;i<length;i+=3) {
 		uint8_t id = table[i];
 		uint8_t hops = table[i+2]; //hops to our neighbor, add 1 for us.
 		uint8_t matchFound = 0;
@@ -136,29 +125,29 @@ int updateTableFromTable(uint8_t* table, uint8_t length, uint8_t senderID) {
 				matchFound = 1;
 			}
 		}
-		if (!matchFound) {
-			updateTableFromNew(senderID, hops);
+		if (!matchFound && id != myID) { //we just discovered a new node in the network!
+			routingTable[routingTableLength] = id;
+			routingTable[routingTableLength + 1] = senderID;
+			routingTable[routingTableLength + 2] = hops+1;
+			routingTableLength += 3;
 			tableChanged = 1;
 		}
 	}
 	return tableChanged;
 }
 
+/**
+ * Ping our neighbors to let them know we still exist
+ */
 void ping() {
-	uint8_t numBytes = 5;
-	uint8_t message[numBytes];
-	//Message structure for this network: sender ID, hop count, destination ID, message type, [message]
-	//sender ID
-	message[0] = id;
-	//hop count
+	uint8_t message[5];
+	//sender ID, hop count, destination ID, message type, [message]
+	message[0] = myID;
 	message[1] = 0;
-	//destination: special character for all neighbors
 	message[2] = UINT8_MAX;
-	//message type: ping
 	message[3] = 'p';
-	//send it along!
 	message[4] = '\0';
-	broadcast(message, numBytes);
+	broadcast(message, 5);
 }
 
 /**
@@ -171,11 +160,12 @@ int updateTableFromDelete(uint8_t nodeID, uint8_t senderID) {
 	for (int i = 0; i < routingTableLength; i+=3) {
 		if(routingTable[i]==nodeID) { //identify the node that was deleted
 			if(routingTable[i+1] == senderID) { //if we have a route through the sender to the dead node
-				for(int j = i; j<routingTableLength; j+=3) {
+				for(int j = i; j<routingTableLength; j+=3) { //delete the entry by shifting everything over
 					routingTable[j] = routingTable[j+3];
 					routingTable[j+1] = routingTable[j+4];
 					routingTable[j+2] = routingTable[j+5];
 				}
+				routingTableLength -= 3;
 				return(1);
 			}
 		}
@@ -183,12 +173,30 @@ int updateTableFromDelete(uint8_t nodeID, uint8_t senderID) {
 	return(0);
 }
 
+
+/**
+ * Send a message to tell the network we've lost our connection to a node
+ * @param the node whose connection has been lost
+ */
+void sendDelete(uint8_t nodeID) {
+	uint8_t message[6];
+	//sender ID, hop count, destination ID, message type, [message]
+	message[0] = myID;
+	message[1] = 0;
+	message[2] = UINT8_MAX;
+	message[3] = 'd';
+	message[4] = nodeID;
+	message[5] = '\0';
+	broadcast(message, 6);
+}
+
 /*
 	call back for receiving a message
 	@param message - the message received
+	@param port - the port the message was sent to
 */
 void messageReceived(uint8_t* message, int port) {
-	//Message structure for this network: # of bytes, sender ID, hop count, destination ID, message type, [message]
+	//# of bytes, sender ID, hop count, destination ID, message type, [message]
 	uint8_t byteCount = message[0];
 	uint8_t senderID = message[1];
 	uint8_t hopCount = message[2];
@@ -203,7 +211,7 @@ void messageReceived(uint8_t* message, int port) {
 		case('n'): //"I'm new here" signal
 			printf("Received new here\n");
 			//add the new neighbor to our routing table
-			updateTableFromNew(senderID, hopCount);
+			updateTableFromNew(senderID);
 			//add to our list of neighbors
 			updateNeighborsFromPing(port, senderID);
 			//broadcast the updated table to all neighbors
@@ -222,7 +230,7 @@ void messageReceived(uint8_t* message, int port) {
 			break;
 		case('d'):
 			printf("Received disconnect signal\n");
-			if(message[5] == id) { //if we receive news of our own deletion
+			if(message[5] == myID) { //if we receive news of our own deletion
 				printf("Received self-disconnect signal. Reconnecting node...\n");
 				newHere(); //correct the mistake
 			}
@@ -237,48 +245,8 @@ void messageReceived(uint8_t* message, int port) {
 }
 
 /**
- * I'm new here!
- * Sends a message to all neighbors to let them know that this node exists
+ * Check our neighbor table to make sure we haven't lost a connection with any of them
  */
-void newHere() {
-	uint8_t numBytes = 5;
-	uint8_t message[numBytes];
-	//Message structure for this network: sender ID, hop count, destination ID, message type, [message]
-	//sender ID
-	message[0] = id;
-	//hop count
-	message[1] = 0;
-	//destination: special character for all neighbors
-	message[2] = UINT8_MAX;
-	//message type: table
-	message[3] = 'n';
-	//send it along!
-	message[4] = '\0';
-	broadcast(message, numBytes);
-}
-
-/**
- * Send a message to tell the network we've lost our connection to a node
- * @param the node whose connection has been lost
- */
-void sendDelete(uint8_t nodeID) {
-	uint8_t numBytes = 6;
-	uint8_t message[numBytes];
-	//Message structure for this network: sender ID, hop count, destination ID, message type, [message]
-	//sender ID
-	message[0] = id;
-	//hop count
-	message[1] = 0;
-	//destination: special character for all neighbors
-	message[2] = UINT8_MAX;
-	//message type: table
-	message[3] = 'd';
-	//send it along!
-	message[4] = nodeID;
-	message[5] = '\0';
-	broadcast(message, numBytes);
-}
-
 void refresh_neighbors() {
 	struct timespec time;
 	clock_gettime(CLOCK_BOOTTIME, &time);
@@ -286,7 +254,7 @@ void refresh_neighbors() {
 		if(neighbors[i][0] != 0) {
 			if (time.tv_sec - neighbors[i][1] > 10) { //if more than two ping intervals have passed since last ping
 				//assume node has been disconnected/deleted
-				deleteFromTable(neighbors[i][0]);
+				updateTableFromDelete(neighbors[i][0],neighbors[i][0]);
 				sendDelete(neighbors[i][0]);
 				neighbors[i][0] = 0;
 				neighbors[i][1] = 0;
@@ -308,12 +276,11 @@ void init() {
 	printf("Enter unique identifier (1-255): ");
 	char IDinput[4];
 	fgets(IDinput, 3, stdin);
-	id = (uint8_t) atoi(IDinput);
+	myID = (uint8_t) atoi(IDinput);
 	//initialize message queue
-	TAILQ_INIT(&head);
 	routingTableLength = 0;
 	nic_lib_init(messageReceived);
-	new_here();
+	newHere();
 }
 
 /**
@@ -322,8 +289,8 @@ void init() {
  */
 void broadcastChat(char* message) {
 	for(int i = 0; i < routingTableLength; i+=3) {
-		char msg[6+strlen(message)];
-		msg[0] = id;
+		uint8_t msg[6+strlen(message)];
+		msg[0] = myID;
 		msg[1] = 0;
 		msg[2] = UINT8_MAX;
 		msg[3] = 'a';
@@ -331,14 +298,17 @@ void broadcastChat(char* message) {
 		for(int j=0; j<=strlen(message);j++) {
 			msg[j+5] = (uint8_t) message[j];
 		}
-		struct msgEntry outEntry;
-		outEntry.msg = msg;
-		outEntry.len = 6+strlen(message);
+		uint8_t len = 6+strlen(message);
+		uint8_t port = portFromID(routingTable[i+1]);
 		//add to queue
-		TAILQ_INSERT_TAIL(&head, &outEntry, msgEntries);
+		sendMessage(port, msg, len);
+
 	}
 }
 
+/**
+ * Start the network and send messages
+ */
 int main() {
 	struct timespec time;
 	int last_ping;
@@ -346,16 +316,16 @@ int main() {
 	last_ping = 0;
 	while(1) {
 		//send all pending messages
-		sendFromQueue();
+		//sendFromQueue();
 		clock_gettime(CLOCK_BOOTTIME, &time);
 		//every 5 seconds, let everyone know we're still here
 		if (time.tv_sec - last_ping >= 5) {
+			printf("Routing table length: %d\n",routingTableLength);
 			ping();
 			last_ping = time.tv_sec;
 			//update table depending on lack of pings
 			refresh_neighbors();
-			broadcastChat("ping");
+			broadcastChat("yay");
 		}
 	}
-	free(routingTable);
 }
