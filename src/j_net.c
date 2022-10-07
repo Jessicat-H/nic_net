@@ -52,6 +52,7 @@ void updateTableFromNew(uint8_t senderID) {
 	routingTable[routingTableLength] = senderID;
 	routingTable[routingTableLength+1] = senderID;
 	routingTable[routingTableLength+2] = 1;
+	printf("+3 in updateTableFromNew\n");
 	routingTableLength += 3;
 }
 
@@ -76,7 +77,7 @@ void updateNeighborsFromPing(int port, uint8_t senderID) {
  * broadcast the routing table to all neighbors so they can update their own table
  */
 void broadcastTable() {
-	uint8_t message[4 + routingTableLength];
+	uint8_t message[5 + routingTableLength];
 	//sender ID, hop count, destination ID, message type, [message]
 	message[0] = myID;
 	message[1] = 0;
@@ -85,7 +86,8 @@ void broadcastTable() {
 	for (int i=0; i<routingTableLength;i++) {
 		message[i+4] = routingTable[i];
 	}
-	broadcast(message, 4 + routingTableLength);
+	message[4+routingTableLength] = '\0';
+	broadcast(message, 5 + routingTableLength);
 }
 
 /**
@@ -108,11 +110,16 @@ int portFromID(int id) {
  * @param senderID the ID of the node that sent the table
  */
 int updateTableFromTable(uint8_t* table, uint8_t length, uint8_t senderID) {
+	for(int t = 0; t < length; t++) {
+		printf("%d ",table[t]);
+	}
+	printf("Length: %d\n",length);
 	int tableChanged = 0;
 	for (int i= 0;i<length;i+=3) {
 		uint8_t id = table[i];
 		uint8_t hops = table[i+2]; //hops to our neighbor, add 1 for us.
 		uint8_t matchFound = 0;
+		printf("Routing table length: %d\n",routingTableLength);
 		for (int j=0;j<routingTableLength;j+=3) {
 			if (id==routingTable[j]) {
 				//we have this id in our datatable
@@ -121,16 +128,23 @@ int updateTableFromTable(uint8_t* table, uint8_t length, uint8_t senderID) {
 					routingTable[j+1] = senderID;
 					routingTable[j+2] = hops+1;
 					tableChanged = 1;
+					printf("Routing table length: %d\n",routingTableLength);
 				}
 				matchFound = 1;
 			}
 		}
 		if (!matchFound && id != myID) { //we just discovered a new node in the network!
-			routingTable[routingTableLength] = id;
+			routingTable[routingTableLength] = id ; //-1 0 +1
 			routingTable[routingTableLength + 1] = senderID;
 			routingTable[routingTableLength + 2] = hops+1;
+			printf("+3 in updateTableFromTable\n");
 			routingTableLength += 3;
+			for(int t = 0; t < routingTableLength; t++) {
+				printf("%d ",routingTable[t]);
+			}
+			printf("\n");
 			tableChanged = 1;
+			printf("Routing table length: %d\n",routingTableLength);
 		}
 	}
 	return tableChanged;
@@ -165,6 +179,7 @@ int updateTableFromDelete(uint8_t nodeID, uint8_t senderID) {
 					routingTable[j+1] = routingTable[j+4];
 					routingTable[j+2] = routingTable[j+5];
 				}
+				printf("-3 in updateTableFromDelete\n");
 				routingTableLength -= 3;
 				return(1);
 			}
@@ -190,6 +205,18 @@ void sendDelete(uint8_t nodeID) {
 	broadcast(message, 6);
 }
 
+/**
+ * Forward a message through to its final destination
+ *
+void forwardMessage(uint8_t* message) {
+	for (int i=0; i<routingTableLength; i+=3) {
+		if (routingTable[i]==destID) {
+			uint8_t port = portFromID(routingTable[i+1]);
+			sendMessage(port, msg, len);
+		}
+	}
+}*/
+
 /*
 	call back for receiving a message
 	@param message - the message received
@@ -200,7 +227,7 @@ void messageReceived(uint8_t* message, int port) {
 	uint8_t byteCount = message[0];
 	uint8_t senderID = message[1];
 	uint8_t hopCount = message[2];
-	//uint8_t destID = message[3];
+	uint8_t destID = message[3];
 	uint8_t msgType = message[4];
 	switch(msgType) {
 		case('p'): //regular ping
@@ -219,14 +246,19 @@ void messageReceived(uint8_t* message, int port) {
 			break;
 		case('u'): //updated routing table from a neighbor
 			printf("Received updated table\n");
+			updateNeighborsFromPing(port, senderID); //
 			if(!updateTableFromTable(&message[5],byteCount-5,senderID)) {
 				broadcastTable();
 			}
 			break;
 		case('a'): //application message
 			printf("Received app message\n");
-			//TODO need code here to relay message if it's not meant for us
-			printf("%s\n",&message[5]);
+			if(destID == myID) {
+				printf("Message meant for us: %s\n",&message[5]);
+			}
+			else {
+				forwardMessage(message);
+			}
 			break;
 		case('d'):
 			printf("Received disconnect signal\n");
