@@ -264,11 +264,11 @@ int main() {
 		sleep(1); //less than ideal, msgs can only go out every sec.
 		secSincePing++;
 
-		if (secSincePing>90) {
+		if (secSincePing>45) {
 			ping();
 			secSincePing =0;
 		}
-		if(secSincePing>60) {
+		if(secSincePing==15) {
 			for (int i=0; i<4 ; i++) {
 				uint8_t helloMsg[5];
 				helloMsg[0]='h';
@@ -276,19 +276,41 @@ int main() {
 				helloMsg[2]='l';
 				helloMsg[3]='l';
 				helloMsg[4]='o';
-				if (neighborTable[1][i!=0) {
+				if (neighborTable[1][i]!=0) {
 					sendAppMsg(&helloMsg[0],5,neighborTable[0][i]);
 				}
 			}
 			
+			if (myID == 12) {
+				uint8_t helloMsg[4];
+				helloMsg[0]='h';
+				helloMsg[1]='i';
+				helloMsg[2]='1';
+				helloMsg[3]='6';
+				sendAppMsg(&helloMsg[0],4,16);
+			}
+
+			printf("Neighbors table:\nID\tLast Heard\n");
+			for (int i=0;i<4;i++) {
+				printf("%d\t%d\n",neighborTable[0][i],neighborTable[1][i]);
+			}
+			printf("\n");
+			printf("Route table:\nID\tNext\tHops\n");
+			for (int i=0;i<rtHeight;i++) {
+				printf("%d\t%d\t%d\n",routeTable[0][i],routeTable[1][i],routeTable[2][i]);
+			}
 		}
 		struct timespec time;
 		clock_gettime(CLOCK_BOOTTIME, &time);
 		for (int i=0; i<4; i++) {
 			//if they every were alive, are they still?
-			if ((time.tv_sec - neighborTable[1][i])>120 && neighborTable[1][i] > 0) { //they're dead!!
+			if ((time.tv_sec - neighborTable[1][i])>90 && neighborTable[1][i] > 0) { //they're dead!!
 				uint8_t deletedID = neighborTable[0][i];
 				deleteRoute(deletedID);
+				//delete from neighbor table
+				neighborTable[0][i] =0;
+				neighborTable[1][i] =0;
+				//delete from RT
 				for (int i =0; i<rtHeight; i++) {
 					if (routeTable[0][i]==deletedID) {
 						if (routeTable[1][i]==deletedID) {
@@ -299,7 +321,6 @@ int main() {
 								routeTable[1][j] = routeTable[1][j+1];
 								routeTable[2][j] = routeTable[2][j+1];
 							}
-							deleteRoute(deletedID);
 							//broadcasting tbl doesnt do anything on delete, so don't bother
 						}
 					break; //don't complete loop.
