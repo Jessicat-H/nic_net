@@ -1,4 +1,3 @@
-#include "nic_lib.h"
 #include <sys/queue.h>
 #include <sys/time.h>
 #include <time.h>
@@ -6,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <unistd.h>
+#include "nic_lib.h"
 
 #define MAX_NET_SIZE 18
 
@@ -276,7 +276,9 @@ int main() {
 				helloMsg[2]='l';
 				helloMsg[3]='l';
 				helloMsg[4]='o';
-				sendAppMsg(&helloMsg[0],5,neighborTable[0][i]);
+				if (neighborTable[1][i!=0) {
+					sendAppMsg(&helloMsg[0],5,neighborTable[0][i]);
+				}
 			}
 			
 		}
