@@ -13,6 +13,11 @@ cd nic_net
 bash library_script.sh
 ./src/sample
 
+Then enter a unique number ID for every node in the network.
+
+## Physical setup
+The code is intended to work on any number of nodes up to 18. To connect a node to the network, connect the xmit and recv ports on one port to an open recv and xmit (respectively) on an open port on a Pi that is already in the network, then run the executable. There is currently no command-line interface, but the nodes will send each other pings and the code can be changed to transmit messages between nodes.
+
 ## Authors
 The following code was written by [Jessica Hannebert](https://github.com/Jessicat-H), [Dylan Chapell](https://github.com/dylanchapell), and [Tony Mastromarino](https://github.com/tonydoesathing). 
 
