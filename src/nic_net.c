@@ -15,6 +15,10 @@ int rtHeight = 0;
 int neighborTable[2][4]; //id, tick last heard. port 1 is idx 0, p2 if idx1
 uint8_t myID;
 
+/**
+* Determine what port to send a message to if we want it to eventually get to the given destination
+* @param destID the ID of the destination
+*/
 int whatPort(uint8_t destID) {
 	uint8_t nextStep; //find id of next step
 	for (int i=0; i<rtHeight; i++) {
@@ -33,6 +37,9 @@ int whatPort(uint8_t destID) {
 	return outPort;
 }
 
+/**
+* Broadcast our routing table to all our neighbors
+*/
 void broadcastTable() {
 	uint8_t output[rtHeight*3+4];
 	output[0] = myID;
@@ -50,6 +57,9 @@ void broadcastTable() {
 	broadcast(output,rtHeight*3+4);
 }
 
+/**
+* Send a ping message to let all our neighbors know we're alive
+*/
 void ping() {
 	uint8_t output[5];
 	output[0] = myID;
@@ -60,6 +70,9 @@ void ping() {
 	broadcast(output,5);
 }
 
+/**
+* Send a message to let all our neighbors know we're new here
+*/
 void newHere() {
 	uint8_t output[5];
 	output[0] = myID;
@@ -70,6 +83,10 @@ void newHere() {
 	broadcast(output,5);
 }
 
+/**
+* Send a message to let all our neighbors know we've lost access to a node
+* @param deletedID the ID of the node we have lost our connection to
+*/
 void deleteRoute(uint8_t deletedID) {
 	uint8_t output[5];
 	output[0] = myID;
@@ -79,6 +96,7 @@ void deleteRoute(uint8_t deletedID) {
 	output[4] = deletedID;
 	broadcast(output,5);
 }
+
 /*
  * Sends a packet with the 'a' type, to hold application layer data, as opposed to network layer
  * communications.
@@ -95,11 +113,15 @@ void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 	for (int i=0; i<length; i++) {
 		output[i+4] = msg[i];
 	}
-	//TODO mem leak
 	sendMessage(whatPort(destID),output, length+4);
+	free(output);
 }
 
-//TODO update accoridng to tony's revision
+/**
+* Callback function to process any message received
+* @param message the message received from the link layer, including all header data
+* @param port the number of the port the message was received from
+*/
 void recieveMessage(uint8_t* message, int port) {
 	//decode header. may change/ be wrong
 	uint8_t numBytes = message[0];
@@ -178,7 +200,7 @@ void recieveMessage(uint8_t* message, int port) {
 				}
 				if ((!matchFound) && (id!=myID) ) {
 					routeTable[0][rtHeight] =id;
-					routeTable[1][rtHeight] =next;
+					routeTable[1][rtHeight] =fromID;
 					routeTable[2][rtHeight] =hops+1;
 					rtHeight++;
 					tableChanged=1;
@@ -249,8 +271,32 @@ void recieveMessage(uint8_t* message, int port) {
 	}
 }
 
+/**
+* Function to call to connect to the network
+* @param id a unique identifier for this node
+*/
+int nic_net_init(int id) {
+	
+	//0 out data tables
+	for (int i =0;i<3;i++) {
+		for (int j=0; j<MAX_NET_SIZE; j++) {
+			routeTable[i][j] =0;
+		}
+	}
+	for (int i =0;i<2;i++) {
+		for (int j=0; j<4; j++) {
+			neighborTable[i][j] =0;
+	}
+
+	
 
 
+
+}
+
+/**
+* Main method for testing purposes.
+*/
 int main() {
 
 	//0 out data tables
