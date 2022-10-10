@@ -210,7 +210,7 @@ void recieveMessage(uint8_t* message, int port) {
 				output[1] = hopCount+1;
 				output[2] = destID;
 				output[3] = msgType;
-				for (int i=5; i<numBytes; i++) {
+				for (int i=5; i<numBytes+1; i++) {
 					output[i-1] = message[i];
 				}
 				
