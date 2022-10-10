@@ -254,7 +254,12 @@ void recieveMessage(uint8_t* message, int port) {
 				}
 				
 				int outPort = whatPort(destID);
-				sendMessage(outPort,output, numBytes);
+				if (outPort == 5) {
+					printf("No port found, aborting\n");
+				}
+				else {
+					sendMessage(outPort,output, numBytes);
+				}
 			}
 			for (int i= 5;i<numBytes+1;i++) {
 				printf("%c",message[i]);
@@ -267,6 +272,10 @@ void recieveMessage(uint8_t* message, int port) {
 			break;
 	}
 	if (tableChanged) {
+		printf("Route table:\nID\tNext\tHops\n");
+		for (int i=0;i<rtHeight;i++) {
+			printf("%d\t%d\t%d\n",routeTable[0][i],routeTable[1][i],routeTable[2][i]);
+		}
 		broadcastTable();
 	}
 }
@@ -351,25 +360,20 @@ int main() {
 			secSincePing =0;
 		}
 		if(secSincePing==15) {
-			
-			if (myID == 12) {
-				uint8_t helloMsg[4];
-				helloMsg[0]='h';
-				helloMsg[1]='i';
-				helloMsg[2]='1';
-				helloMsg[3]='6';
-				sendAppMsg(&helloMsg[0],4,16);
-			}
+			for (int i=0; i<rtHeight; i++) {
+				if (routeTable[0][i]) {
+					uint8_t testMsg[2];
+					testMsg[0] = 'h';
+					testMsg[1] = 'i';
+					sendAppMsg(&testMsg[0],2,routeTable[0][i]);
+				}
+			}			
 
 			printf("Neighbors table:\nID\tLast Heard\n");
 			for (int i=0;i<4;i++) {
 				printf("%d\t%d\n",neighborTable[0][i],neighborTable[1][i]);
 			}
 			printf("\n");
-			printf("Route table:\nID\tNext\tHops\n");
-			for (int i=0;i<rtHeight;i++) {
-				printf("%d\t%d\t%d\n",routeTable[0][i],routeTable[1][i],routeTable[2][i]);
-			}
 		}
 		struct timespec time;
 		clock_gettime(CLOCK_BOOTTIME, &time);
