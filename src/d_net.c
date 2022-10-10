@@ -159,7 +159,7 @@ void recieveMessage(uint8_t* message, int port) {
 						matchFound =1;
 					}
 				}
-				if (!matchFound) {
+				if ((!matchFound) && (id!=myID) ) {
 					routeTable[0][rtHeight] =id;
 					routeTable[1][rtHeight] =next;
 					routeTable[2][rtHeight] =hops+1;
