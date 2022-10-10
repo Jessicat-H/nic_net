@@ -181,7 +181,7 @@ void recieveMessage(uint8_t* message, int port) {
 		case 'u':
 			//updated table
 			printf("Recieved Updated Table\n");
-			for (int i= 5;i<numBytes+1;i+=3) {
+			for (int i= 5;i<numBytes;i+=3) {
 				uint8_t id = message[i];
 				uint8_t next = message[i+1]; 
 				uint8_t hops = message[i+2]; //hops to our neighbor, add 1 for us.
@@ -284,7 +284,7 @@ void recieveMessage(uint8_t* message, int port) {
 * Function to call to connect to the network
 * @param id a unique identifier for this node
 */
-int nic_net_init(int id) {
+void nic_net_init(int id) {
 	
 	//0 out data tables
 	for (int i =0;i<3;i++) {
@@ -312,6 +312,8 @@ int nic_net_init(int id) {
 * If not, remove them from all lists and notify the network
 */
 void checkNeighbors() {
+	struct timespec time;
+	clock_gettime(CLOCK_BOOTTIME, &time);
 	for (int i=0; i<4; i++) {
 		//if they every were alive, are they still?
 		if ((time.tv_sec - neighborTable[1][i])>90 && neighborTable[1][i] > 0) { //they're dead!!
@@ -375,8 +377,6 @@ int main() {
 			}
 			printf("\n");
 		}
-		struct timespec time;
-		clock_gettime(CLOCK_BOOTTIME, &time);
 		checkNeighbors();
 
 	}
