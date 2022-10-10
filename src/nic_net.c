@@ -27,7 +27,7 @@ int whatPort(uint8_t destID) {
 			break;
 		}
 	}
-	int outPort; //find what port is that id
+	int outPort = 5; //find what port is that id
 	for (int i=0; i<4; i++) {
 		if (neighborTable[0][i] == nextStep) {
 			outPort = i;
@@ -286,11 +286,46 @@ int nic_net_init(int id) {
 	for (int i =0;i<2;i++) {
 		for (int j=0; j<4; j++) {
 			neighborTable[i][j] =0;
+		}
 	}
 
+	myID = (uint8_t) id;
+	//register callback
+	nic_lib_init(recieveMessage);
 	
+	newHere();
+	ping();
 
+}
 
+/**
+* Iterate through list of neighbors to check whether they are still connected
+* If not, remove them from all lists and notify the network
+*/
+void checkNeighbors() {
+	for (int i=0; i<4; i++) {
+		//if they every were alive, are they still?
+		if ((time.tv_sec - neighborTable[1][i])>90 && neighborTable[1][i] > 0) { //they're dead!!
+			uint8_t deletedID = neighborTable[0][i];
+			deleteRoute(deletedID);
+			//delete from neighbor table
+			neighborTable[0][i] =0;
+			neighborTable[1][i] =0;
+			//delete from RT
+			for (int k =0; k<rtHeight; k++) {
+				if (routeTable[0][k]==deletedID && routeTable[1][k]==deletedID) {
+					//delete entry and shift up
+					rtHeight--;
+					for (int j = k; j<rtHeight; j++) {
+						routeTable[0][j] = routeTable[0][j+1];
+						routeTable[1][j] = routeTable[1][j+1];
+						routeTable[2][j] = routeTable[2][j+1];
+					}
+					break; //don't complete loop.
+				}
+			}
+		}
+	}
 
 }
 
@@ -299,28 +334,12 @@ int nic_net_init(int id) {
 */
 int main() {
 
-	//0 out data tables
-	for (int i =0;i<3;i++) {
-		for (int j=0; j<MAX_NET_SIZE; j++) {
-			routeTable[i][j] =0;
-		}
-	}
-	for (int i =0;i<2;i++) {
-		for (int j=0; j<4; j++) {
-			neighborTable[i][j] =0;
-		}
-	}
-
 	//get unique id
 	printf("Enter unique identifier (0-255): ");
 	char input[4];
 	fgets(input,3,stdin);
-	myID = (uint8_t) atoi(input);
 
-	//register callback
-	nic_lib_init(recieveMessage);
-
-	newHere();
+	nic_net_init(atoi(input));
 
 	int secSincePing;
 	while (1) {
@@ -332,17 +351,6 @@ int main() {
 			secSincePing =0;
 		}
 		if(secSincePing==15) {
-			for (int i=0; i<4 ; i++) {
-				uint8_t helloMsg[5];
-				helloMsg[0]='h';
-				helloMsg[1]='e';
-				helloMsg[2]='l';
-				helloMsg[3]='l';
-				helloMsg[4]='o';
-				if (neighborTable[1][i]!=0) {
-					sendAppMsg(&helloMsg[0],5,neighborTable[0][i]);
-				}
-			}
 			
 			if (myID == 12) {
 				uint8_t helloMsg[4];
@@ -365,32 +373,8 @@ int main() {
 		}
 		struct timespec time;
 		clock_gettime(CLOCK_BOOTTIME, &time);
-		for (int i=0; i<4; i++) {
-			//if they every were alive, are they still?
-			if ((time.tv_sec - neighborTable[1][i])>90 && neighborTable[1][i] > 0) { //they're dead!!
-				uint8_t deletedID = neighborTable[0][i];
-				deleteRoute(deletedID);
-				//delete from neighbor table
-				neighborTable[0][i] =0;
-				neighborTable[1][i] =0;
-				//delete from RT
-				for (int i =0; i<rtHeight; i++) {
-					if (routeTable[0][i]==deletedID) {
-						if (routeTable[1][i]==deletedID) {
-							//delete entry and shift up
-							rtHeight--;
-							for (int j = i; j<rtHeight; j++) {
-								routeTable[0][j] = routeTable[0][j+1];
-								routeTable[1][j] = routeTable[1][j+1];
-								routeTable[2][j] = routeTable[2][j+1];
-							}
-							//broadcasting tbl doesnt do anything on delete, so don't bother
-						}
-					break; //don't complete loop.
-					}
-				}
-			}
-		}
+		checkNeighbors();
+
 	}
 	return 0;
 }
