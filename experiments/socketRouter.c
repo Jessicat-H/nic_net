@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
         if (poll(pollfds, numClients + 1, -1)<0) {
             printf("Error on poll\n");
             return -1;
-        }
+        }   
         else {
             //if there is info on the server's port
             if (pollfds[0].revents & POLLIN) {
