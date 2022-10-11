@@ -146,9 +146,11 @@ void recieveMessage(uint8_t* message, int port) {
 			for (int j=0;j<rtHeight;j++) {
 				if (senderID==routeTable[0][j]) {
 					//we have this id in our datatable
-					routeTable[1][j] = senderID;
-					routeTable[2][j] = 1;
-					tableChanged=1;
+					if (routeTable[1][j] != senderID) {
+						routeTable[1][j] = senderID;
+						routeTable[2][j] = 1;
+						tableChanged=1;
+					}
 					matchFound = 1;
 				}
 			}
@@ -157,6 +159,7 @@ void recieveMessage(uint8_t* message, int port) {
 				routeTable[1][rtHeight] =senderID;
 				routeTable[2][rtHeight] =1;
 				rtHeight++;
+				tableChanged=1;
 			}
 			break;
 	
