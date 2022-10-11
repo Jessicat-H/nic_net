@@ -7,3 +7,4 @@
 ### Above combination will ignore all files without extension ###
 .vscode/
 .DS_Store
+*.dsym
