@@ -1,7 +1,12 @@
-#include <stdio.h>
+#include <sys/types.h>
 #include <sys/socket.h>
-#include <stdlib.h>
+#include <sys/un.h>
+#include <stdio.h>
 #include <unistd.h>
+#include <string.h>
+#include <sys/time.h>
+#include <stdint.h>
+#include <poll.h>
 
 #define PORT_PATH "/tmp/nic_net"
 //not sure what size is ahora
@@ -19,7 +24,7 @@ int main(int argc, char** argv) {
 
     struct sockaddr_un addr;
     addr.sun_family = AF_UNIX;
-    addr.sun_path = PORT_PATH;
+    strcpy(addr.sun_path, PORT_PATH);
 
     if (bind(serverSock, (struct sockaddr *)&addr, sizeof(addr)) <0) {
         printf("Error on bind\n");
@@ -34,7 +39,6 @@ int main(int argc, char** argv) {
     printf("server started\n");
 
     /* Server loop */
-
     struct pollfd pollfds[MAX_CLIENTS + 1];
     //listen for regular and high priority data
     pollfds[0].fd = serverSock;
@@ -54,7 +58,7 @@ int main(int argc, char** argv) {
                 int addrLen = sizeof(cliAddr);
                 int clientSock = accept(serverSock, (struct sockaddr *)&cliAddr, &addrLen);
 
-                printf("accept success %s\n", inet_ntoa(cliAddr.sin_addr));
+                printf("accept success\n");
                 //put the client in the list of sockets we r watching
                 for (int i = 1; i < MAX_CLIENTS; i++)
                 {
@@ -86,4 +90,8 @@ int main(int argc, char** argv) {
 
         }
     }
+    printf("server end\n");
+    close(serverSock);
+
+    return 0;
 }
