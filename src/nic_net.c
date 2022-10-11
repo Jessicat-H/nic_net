@@ -129,7 +129,7 @@ void recieveMessage(uint8_t* message, int port) {
 	uint8_t hopCount = message[2];
 	uint8_t destID = message[3];
 	uint8_t msgType = message[4]; 
-	uint8_t fromID = neighborTable[0][port];
+	//uint8_t fromID = neighborTable[0][port];
 
 	uint8_t tableChanged = 0;
 
@@ -191,7 +191,7 @@ void recieveMessage(uint8_t* message, int port) {
 						//we have this id in our datatable
 						if(routeTable[2][j]>hops+1) {
 							//our neighbor has a shorter route
-							routeTable[1][j] = fromID;
+							routeTable[1][j] = senderID;
 							routeTable[2][j] = hops+1;
 							tableChanged=1;
 						}
@@ -200,7 +200,7 @@ void recieveMessage(uint8_t* message, int port) {
 				}
 				if ((!matchFound) && (id!=myID) ) {
 					routeTable[0][rtHeight] =id;
-					routeTable[1][rtHeight] =fromID;
+					routeTable[1][rtHeight] =senderID;
 					routeTable[2][rtHeight] =hops+1;
 					rtHeight++;
 					tableChanged=1;
