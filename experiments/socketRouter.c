@@ -62,19 +62,6 @@ int main(int argc, char** argv) {
                 numClients++;
                 pollfds[numClients].fd = clientSock;
                 pollfds[numClients].events = POLLIN | POLLPRI;
-                /*
-                for (int i = 1; i < MAX_CLIENTS; i++)
-                {
-                    if (pollfds[i].fd == 0)
-                    {
-
-                        pollfds[i].fd = clientSock;
-                        pollfds[i].events = POLLIN | POLLPRI;
-                        numClients++;
-                        break;
-                    }
-                }
-                */
 
             }
             //could MAX_CLIENTS instead be useClient?
@@ -83,7 +70,16 @@ int main(int argc, char** argv) {
                     uint8_t buf[SIZE]; //enough for app id + max msg
                     int bufSize = read(pollfds[i].fd, buf, SIZE - 1);
                     if (bufSize == -1 || bufSize == 0) {
-                        printf("Read from client failed\n");
+                        //read from client failed, remove it by shifting up
+                        numClients--;
+                        for (int j = i; j<numClients+1; j++) {
+							pollfds[j].fd = pollfds[j+1].fd;
+                            pollfds[j].events = pollfds[j+1].events;
+                            pollfds[j].revents = pollfds[j+1].revents;
+						}
+                        pollfds[numClients+1].fd =0;
+                        pollfds[numClients+1].events =0;
+                        pollfds[numClients+1].revents =0;
                     }
                     else {
                         buf[bufSize] = '\0';
