@@ -25,7 +25,7 @@ int main()
 
     int server_socket = connect(client_socket, (struct sockaddr *)&addr, sizeof(addr));
 
-    printf("Connect result ==> %d\n", server_socket);
+    printf("Connect result ==> %d\n Client Sock ==> %d\n", server_socket, client_socket);
     if (server_socket < 0) {
         perror("Connect result");
         exit(1);

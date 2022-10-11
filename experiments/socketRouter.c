@@ -9,7 +9,6 @@
 #include <poll.h>
 
 #define PORT_PATH "/tmp/nic_net"
-//not sure what size is ahora
 #define SIZE 123
 #define MAX_CLIENTS 10
 
@@ -60,6 +59,10 @@ int main(int argc, char** argv) {
 
                 printf("accept success\n");
                 //put the client in the list of sockets we r watching
+                numClients++;
+                pollfds[numClients].fd = clientSock;
+                pollfds[numClients].events = POLLIN | POLLPRI;
+                /*
                 for (int i = 1; i < MAX_CLIENTS; i++)
                 {
                     if (pollfds[i].fd == 0)
@@ -71,10 +74,11 @@ int main(int argc, char** argv) {
                         break;
                     }
                 }
+                */
 
             }
             //could MAX_CLIENTS instead be useClient?
-            for (int i =1; i < numClients; i++) {
+            for (int i =1; i < numClients + 1; i++) {
                 if (pollfds[i].fd > 0 && pollfds[i].revents & POLLIN) {
                     uint8_t buf[SIZE]; //enough for app id + max msg
                     int bufSize = read(pollfds[i].fd, buf, SIZE - 1);
