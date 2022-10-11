@@ -240,10 +240,10 @@ void recieveMessage(uint8_t* message, int port) {
 		case 'a':
 			//application layer data. should forward here.
 			if(destID == myID) {
-				printf("Message for me:\n");
+				printf("Message for me from %d:\n",senderID);
 			}
 			else {
-				printf("Message for %d\n",destID);
+				printf("Message for %d from %d\n",destID, senderID);
 				uint8_t output[numBytes];
 				output[0] = senderID;
 				output[1] = hopCount+1;
