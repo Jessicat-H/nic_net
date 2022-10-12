@@ -1,5 +1,6 @@
 #include <sys/queue.h>
 #include <sys/time.h>
+#include <unistd.h>
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,10 @@ call_back messageReceived;
 * @param destID the ID of the destination
 */
 int whatPort(uint8_t destID) {
+	printf("Route table:\nID\tNext\tHops\n");
+		for (int i=0;i<rtHeight;i++) {
+			printf("%d\t%d\t%d\n",routeTable[0][i],routeTable[1][i],routeTable[2][i]);
+		}
 	uint8_t nextStep; //find id of next step
 	for (int i=0; i<rtHeight; i++) {
 		if (routeTable[0][i] == destID) {
@@ -107,6 +112,7 @@ void deleteRoute(uint8_t deletedID) {
  */
 void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 	uint8_t *output = malloc(sizeof(uint8_t)*(4+length));
+	printf("sending message of size %d to %d\n", length,destID);
 	output[0] = myID;
 	output[1] = 0;
 	output[2] = destID;
@@ -114,6 +120,8 @@ void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 	for (int i=0; i<length; i++) {
 		output[i+4] = msg[i];
 	}
+	printf("the message: %s\n", &msg[1]);
+	printf("Sending to port: %d\n", whatPort(destID));
 	sendMessage(whatPort(destID),output, length+4);
 	free(output);
 }
@@ -330,6 +338,7 @@ void checkNeighbors() {
 			//delete from RT
 			for (int k =0; k<rtHeight; k++) {
 				if (routeTable[0][k]==deletedID && routeTable[1][k]==deletedID) {
+					printf("deleting neighbors\n");
 					//delete entry and shift up
 					rtHeight--;
 					for (int j = k; j<rtHeight; j++) {
@@ -353,14 +362,18 @@ int runServer(int id, call_back routerMessageReceived) {
 	messageReceived = routerMessageReceived;
 	nic_net_init(id);
 	int numPings = 0;
-	while (1) {
-		sleep(10); //less than ideal, msgs can only go out every sec.
-		numPings++;
-		ping();
-		if(numPings==3) {
-			numPings=0;
-			checkNeighbors();
+	if(!fork()) {
+		while (1) {
+			sleep(10); //less than ideal, msgs can only go out every sec.
+			numPings++;
+			ping();
+			if(numPings==3) {
+				numPings=0;
+				checkNeighbors();
+			}
 		}
 	}
-	return 0;
+	else {
+		return 0;
+	}
 }

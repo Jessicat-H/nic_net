@@ -1,7 +1,7 @@
 #ifndef NIC_NET
 #define NIC_NET
 
-#include <unistd.h>
+#include <stdint.h>
 #include "nic_lib.h"
 
 /*

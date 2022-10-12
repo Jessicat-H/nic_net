@@ -64,7 +64,17 @@ int main()
         // write
         while (1)
         {
-            printf("Destination ID: \n");
+		sleep(1);
+		buf[0]=13;
+		buf[1]=APP_ID;
+		buf[2]='m';
+		buf[3]='e';
+		buf[4]='o';
+		buf[5]='w';
+		buf[6]='\0';
+		write(client_socket, buf, 7);
+
+           /* printf("Destination ID: \n");
             char destString[4];
             fgets(destString,4,stdin);
             uint8_t destID = atoi(destString);
@@ -72,8 +82,9 @@ int main()
             fgets(&buf[2],SIZE-2,stdin); //will this yell at us? lets find out.
             buf[0] = destID;
             buf[1] = APP_ID;
-            write(client_socket, buf, strlen(buf)+1);
-            printf("\n");
+	    printf("Sending: %s \n", &buf[2]);
+            write(client_socket, buf, SIZE);
+            printf("\n");*/
         }
     }
     

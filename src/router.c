@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sys/time.h>
 #include <stdint.h>
 #include <poll.h>
@@ -39,15 +40,12 @@ int main(int argc, char** argv) {
     }
 
     if (argc < 2) {
-        printf("Usage: ./router <node IP>")
+        printf("Usage: ./router <node IP>");
         return(1);
     }
     int myID = atoi(argv[1]);
 
-    if(fork()==0) {
         runServer(myID, routerMessageReceived);
-    }
-    else {
         /* Startup server */
         remove(PORT_PATH);
         int serverSock = socket(AF_LOCAL, SOCK_STREAM, 0);
@@ -83,7 +81,7 @@ int main(int argc, char** argv) {
                 //if there is info on the server's port
                 if (pollfds[0].revents & POLLIN) {
                     struct sockaddr_un cliAddr;
-                    int addrLen = sizeof(cliAddr);
+                    socklen_t addrLen = sizeof(cliAddr);
                     int clientSock = accept(serverSock, (struct sockaddr *)&cliAddr, &addrLen);
 
                     printf("accept success\n");
@@ -96,6 +94,7 @@ int main(int argc, char** argv) {
                 }
                 for (int i =1; i < numClients + 1; i++) {
                     if (pollfds[i].fd > 0 && pollfds[i].revents & POLLIN) {
+			    printf("something changed in watched fd %d \n", pollfds[i].fd);
                         uint8_t buf[SIZE]; //enough for app id + max msg
                         int bufSize = read(pollfds[i].fd, buf, SIZE - 1);
                         if (bufSize == -1 || bufSize == 0) {
@@ -111,19 +110,21 @@ int main(int argc, char** argv) {
                             pollfds[numClients+1].fd =0;
                             pollfds[numClients+1].events =0;
                             pollfds[numClients+1].revents =0;
-                            appIDTable[j][0] = 0;
-                            appIDTable[j][1] = 0;
+                            appIDTable[numClients][0] = 0;
+                            appIDTable[numClients][1] = 0;
                         }
                         else {
                             if (appIDTable[i-1][1]==0) { //first message from app
                                 appIDTable[i-1][0] = buf[0];
                                 appIDTable[i-1][1] = pollfds[i].fd;
+				printf("router; new message received\n");
                             }
                             else { //not first msg
                                 uint8_t dest = buf[0];
                                 uint8_t appID = buf[1];
                                 uint8_t msgLength = bufSize - 2;
 
+				    printf("Dest: %d;  AppID: %d;  msg:%s\n", dest, appID, &buf[2]);
                                 uint8_t output[SIZE];
                                 for (int g=1; g<msgLength; g++) {
                                     output[g-1] = buf[g];
@@ -133,12 +134,9 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
-
+		}
             }
-        }
         printf("server end\n");
         close(serverSock);
-
         return 0;
     }
-}
