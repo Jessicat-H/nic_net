@@ -13,11 +13,10 @@
 #define SIZE 123
 #define MAX_CLIENTS 10
 
-int appIDTable[MAX_CLIENTS][2];
+int appIDTable[MAX_CLIENTS][2] = {0}; //[row][col] AppId, File Descriptor
 
 void routerMessageReceived(uint8_t* message, int appID) {
-
-
+    // get entire header
 }
 
 /*
@@ -42,6 +41,7 @@ int main(int argc, char** argv) {
     }
     else {
         /* Startup server */
+        remove(PORT_PATH);
         int serverSock = socket(AF_LOCAL, SOCK_STREAM, 0);
 
         struct sockaddr_un addr;
@@ -99,14 +99,31 @@ int main(int argc, char** argv) {
                                 pollfds[j].fd = pollfds[j+1].fd;
                                 pollfds[j].events = pollfds[j+1].events;
                                 pollfds[j].revents = pollfds[j+1].revents;
+                                appIDTable[j-1][0] = appIDTable[j][0];
+                                appIDTable[j-1][1] = appIDTable[j][1];
                             }
                             pollfds[numClients+1].fd =0;
                             pollfds[numClients+1].events =0;
                             pollfds[numClients+1].revents =0;
+                            appIDTable[j][0] = 0;
+                            appIDTable[j][1] = 0;
                         }
                         else {
-                            buf[bufSize] = '\0';
-                            printf("From client: %s\n", buf);
+                            if (appIDTable[i-1][1]==0) { //first message from app
+                                appIDTable[i-1][0] = buf[0];
+                                appIDTable[i-1][1] = pollfds[i].fd;
+                            }
+                            else { //not first msg
+                                uint8_t dest = buf[0];
+                                uint8_t appID = buf[1];
+                                uint8_t msgLength = bufSize - 2;
+
+                                uint8_t output[SIZE];
+                                for (int g=1; g<msgLength; g++) {
+                                    output[g-1] = buf[g];
+                                }
+                                sendAppMsg(output, bufSize-1, dest);
+                            }
                         }
                     }
                 }
