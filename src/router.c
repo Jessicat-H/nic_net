@@ -14,9 +14,17 @@
 #define MAX_CLIENTS 10
 
 int appIDTable[MAX_CLIENTS][2] = {0}; //[row][col] AppId, File Descriptor
+struct pollfd pollfds[MAX_CLIENTS + 1];
+int numClients = 0;
 
 void routerMessageReceived(uint8_t* message, int appID) {
     // get entire header
+    for (int i=0; i<numClients; i++) {
+        if (appIDTable[i][0]==appID) {
+            write(appIDTable[i][1], message, message[0]+1);
+            break;
+        }
+    }
 }
 
 /*
@@ -61,11 +69,9 @@ int main(int argc, char** argv) {
         printf("server started\n");
 
         /* Server loop */
-        struct pollfd pollfds[MAX_CLIENTS + 1];
         //listen for regular and high priority data
         pollfds[0].fd = serverSock;
         pollfds[0].events = POLLIN | POLLPRI;
-        int numClients = 0;
 
         while (1) {
             //hang until there is data to read
