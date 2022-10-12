@@ -4,16 +4,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <unistd.h>
-#include "nic_lib.h"
+#include "nic_net.h"
 
 #define MAX_NET_SIZE 18
+
 
 //set up datatables
 uint8_t routeTable[3][MAX_NET_SIZE]; //id, next step towards, hops on this path
 int rtHeight = 0;
 int neighborTable[2][4]; //id, tick last heard. port 1 is idx 0, p2 if idx1
 uint8_t myID;
+call_back messageReceived;
 
 /**
 * Determine what port to send a message to if we want it to eventually get to the given destination
@@ -122,7 +123,7 @@ void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 * @param message the message received from the link layer, including all header data
 * @param port the number of the port the message was received from
 */
-void recieveMessage(uint8_t* message, int port) {
+void receiveMessage(uint8_t* message, int port) {
 	//decode header. may change/ be wrong
 	uint8_t numBytes = message[0];
 	uint8_t senderID = message[1];
@@ -136,7 +137,7 @@ void recieveMessage(uint8_t* message, int port) {
 	struct timespec time;
 	switch (msgType){
 		case 'p':
-			printf("Recieved ping!\n");
+			printf("Received ping!\n");
 			//ping
 			clock_gettime(CLOCK_BOOTTIME, &time);
 			//set last heard to now
@@ -164,7 +165,7 @@ void recieveMessage(uint8_t* message, int port) {
 			break;
 	
 		case 'n':
-			printf("Recieved new neighbor!\n");
+			printf("Received new neighbor!\n");
 			//new pi started up. assuming they are our neighbor
 			neighborTable[0][port] = senderID;
 
@@ -183,7 +184,7 @@ void recieveMessage(uint8_t* message, int port) {
 
 		case 'u':
 			//updated table
-			printf("Recieved Updated Table\n");
+			printf("Received Updated Table\n");
 			for (int i= 5;i<numBytes;i+=3) {
 				uint8_t id = message[i];
 				uint8_t next = message[i+1]; 
@@ -213,7 +214,7 @@ void recieveMessage(uint8_t* message, int port) {
 			break;
 
 		case 'd': ;
-			printf("recieved delete message\n");
+			printf("received delete message\n");
 			uint8_t deletedID = message[5];
 			if (deletedID == myID) {
 				//oh no they think i'm dead!
@@ -244,6 +245,7 @@ void recieveMessage(uint8_t* message, int port) {
 			//application layer data. should forward here.
 			if(destID == myID) {
 				printf("Message for me from %d:\n",senderID);
+				messageReceived(message,message[5]);
 			}
 			else {
 				printf("Message for %d from %d\n",destID, senderID);
@@ -303,7 +305,7 @@ void nic_net_init(int id) {
 
 	myID = (uint8_t) id;
 	//register callback
-	nic_lib_init(recieveMessage);
+	nic_lib_init(receiveMessage);
 	
 	newHere();
 	ping();
@@ -344,44 +346,21 @@ void checkNeighbors() {
 }
 
 /**
-* Main method for testing purposes.
+* Do server setup then infinitely loop, pinging and checking neighbors
+* Should run in a seperate thread, will never complete.
 */
-int main() {
-
-	//get unique id
-	printf("Enter unique identifier (0-255): ");
-	char input[4];
-	fgets(input,3,stdin);
-
-	nic_net_init(atoi(input));
-
-	int secSincePing;
+int runServer(int id, call_back routerMessageReceived) {
+	messageReceived = routerMessageReceived;
+	nic_net_init(id);
+	int numPings = 0;
 	while (1) {
-		sleep(1); //less than ideal, msgs can only go out every sec.
-		secSincePing++;
-
-		if (secSincePing>45) {
-			ping();
-			secSincePing =0;
+		sleep(10); //less than ideal, msgs can only go out every sec.
+		numPings++;
+		ping();
+		if(numPings==3) {
+			numPings=0;
+			checkNeighbors();
 		}
-		if(secSincePing==15) {
-			for (int i=0; i<rtHeight; i++) {
-				if (routeTable[0][i]) {
-					uint8_t testMsg[2];
-					testMsg[0] = 'h';
-					testMsg[1] = 'i';
-					sendAppMsg(&testMsg[0],2,routeTable[0][i]);
-				}
-			}			
-
-			printf("Neighbors table:\nID\tLast Heard\n");
-			for (int i=0;i<4;i++) {
-				printf("%d\t%d\n",neighborTable[0][i],neighborTable[1][i]);
-			}
-			printf("\n");
-		}
-		checkNeighbors();
-
 	}
 	return 0;
 }
