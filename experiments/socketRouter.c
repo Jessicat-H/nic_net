@@ -84,6 +84,9 @@ int main(int argc, char** argv) {
                     else {
                         buf[bufSize] = '\0';
                         printf("From client: %s\n", buf);
+                        for(int j=1;j<numClients+1;j++){
+                            write(pollfds[j].fd, buf, bufSize+1);
+                        }
                     }
                 }
             }

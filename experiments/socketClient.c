@@ -5,6 +5,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <sys/poll.h>
 
 //#define PORT 9990
 #define PORT_PATH "/tmp/nic_net"
@@ -33,17 +34,43 @@ int main()
 
     char buf[SIZE] = {0};
 
-    while (1)
-    {
-        printf("Send to server: ");
-        scanf("%s", buf);
-        write(client_socket, buf, strlen(buf));
-        printf("\n");
-        if (strncmp(buf, "end", 3) == 0)
+    if(fork()==0){
+        // read
+        struct pollfd pollfds[1];
+        //listen for regular and high priority data
+        pollfds[0].fd = client_socket;
+        pollfds[0].events = POLLIN | POLLPRI;
+        while(1){
+		printf("polling\n");
+            if (poll(pollfds, 1, -1)<0) {
+                printf("Error on poll\n");
+                return -1;
+            }else{
+                // check for data to read
+                if (pollfds[0].revents & POLLIN) {
+                    uint8_t buf[SIZE]; //enough for app id + max msg
+                    int bufSize = read(pollfds[0].fd, buf, SIZE - 1);
+		    printf("Received from server: %s\n",buf);
+                }
+            }
+        }
+
+          
+    }else{
+        // write
+        while (1)
         {
-            break;
+            printf("Send to server: ");
+            scanf("%s", buf);
+            write(client_socket, buf, strlen(buf));
+            printf("\n");
+            if (strncmp(buf, "end", 3) == 0)
+            {
+                break;
+            }
         }
     }
+    
     close(server_socket);
 
     return 0;
