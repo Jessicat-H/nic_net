@@ -72,7 +72,7 @@ int main()
             fgets(&buf[2],SIZE-2,stdin); //will this yell at us? lets find out.
             buf[0] = destID;
             buf[1] = APP_ID;
-            write(client_socket, buf, SIZE);
+            write(client_socket, buf, strlen(buf)+1);
             printf("\n");
         }
     }
