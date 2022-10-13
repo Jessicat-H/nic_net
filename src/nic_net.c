@@ -16,6 +16,8 @@ int rtHeight = 0;
 int neighborTable[2][4]; //id, tick last heard. port 1 is idx 0, p2 if idx1
 uint8_t myID;
 call_back messageReceived;
+//lock for routing table so that it cannot be modified by two threads simultaneously
+pthread_mutex_t lock;
 
 /**
 * Determine what port to send a message to if we want it to eventually get to the given destination
@@ -149,6 +151,7 @@ void receiveMessage(uint8_t* message, int port) {
 			//ping
 			clock_gettime(CLOCK_BOOTTIME, &time);
 			//set last heard to now
+			pthread_mutex_lock(&lock);
 			neighborTable[1][port] = time.tv_sec;
 			neighborTable[0][port] = senderID;
 			int matchFound = 0;
@@ -170,11 +173,13 @@ void receiveMessage(uint8_t* message, int port) {
 				rtHeight++;
 				tableChanged=1;
 			}
+			pthread_mutex_unlock(&lock);
 			break;
 	
 		case 'n':
 			printf("Received new neighbor!\n");
 			//new pi started up. assuming they are our neighbor
+			pthread_mutex_lock(&lock);
 			neighborTable[0][port] = senderID;
 
 			clock_gettime(CLOCK_BOOTTIME, &time);
@@ -186,6 +191,7 @@ void receiveMessage(uint8_t* message, int port) {
 			routeTable[1][rtHeight] = senderID; //our neighbor
 			routeTable[2][rtHeight] = 1;
 			rtHeight++;
+			pthread_mutex_unlock(&lock);
 			tableChanged = 1;
 			//send them our data table
 			break;
@@ -198,6 +204,7 @@ void receiveMessage(uint8_t* message, int port) {
 				uint8_t next = message[i+1]; 
 				uint8_t hops = message[i+2]; //hops to our neighbor, add 1 for us.
 				uint8_t matchFound = 0;
+				pthread_mutex_lock(&lock);
 				for (int j=0;j<rtHeight;j++) {
 					if (id==routeTable[0][j]) {
 						//we have this id in our datatable
@@ -217,6 +224,7 @@ void receiveMessage(uint8_t* message, int port) {
 					rtHeight++;
 					tableChanged=1;
 				}
+				pthread_mutex_unlock(&lock);
 			}
 
 			break;
@@ -228,6 +236,7 @@ void receiveMessage(uint8_t* message, int port) {
 				//oh no they think i'm dead!
 				newHere();
 			}
+			pthread_mutex_lock(&lock);
 			for (int i =0; i<rtHeight; i++) {
 				if (routeTable[0][i]==deletedID) {
 					if (routeTable[1][i]==senderID) {
@@ -247,6 +256,7 @@ void receiveMessage(uint8_t* message, int port) {
 					break; //don't complete loop.
 				}
 			}
+			pthread_mutex_unlock(&lock);
 			break;
 
 		case 'a':
@@ -314,6 +324,11 @@ void nic_net_init(int id) {
 	myID = (uint8_t) id;
 	//register callback
 	nic_lib_init(receiveMessage);
+
+	 if (pthread_mutex_init(&lock, NULL) != 0) {
+        printf("\n mutex init has failed\n");
+        return 1;
+    }
 	
 	newHere();
 	ping();
@@ -328,7 +343,8 @@ void checkNeighbors() {
 	struct timespec time;
 	clock_gettime(CLOCK_BOOTTIME, &time);
 	for (int i=0; i<4; i++) {
-		//if they every were alive, are they still?
+		//if they ever were alive, are they still?
+		pthread_mutex_lock(&lock);
 		if ((time.tv_sec - neighborTable[1][i])>90 && neighborTable[1][i] > 0) { //they're dead!!
 			uint8_t deletedID = neighborTable[0][i];
 			deleteRoute(deletedID);
@@ -350,6 +366,7 @@ void checkNeighbors() {
 				}
 			}
 		}
+		pthread_mutex_unlock(&lock);
 	}
 
 }
