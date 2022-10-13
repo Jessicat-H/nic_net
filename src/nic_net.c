@@ -348,7 +348,6 @@ void nic_net_init(int id) {
     }
 	
 	newHere();
-	ping();
 
 }
 
@@ -402,6 +401,15 @@ void* pingForever() {
 			numPings=0;
 			checkNeighbors();
 		}
+		sleep(5);
+		for (int i=0; i<rtHeight; i++) {
+			if (routeTable[0][i]) {
+				uint8_t testMsg[2];
+				testMsg[0] = 'h';
+				testMsg[1] = 'i';
+				sendAppMsg(&testMsg[0],2,routeTable[0][i]);
+			}
+		}
 	}
 }
 
@@ -414,5 +422,24 @@ int runServer(int id, call_back routerMessageReceived) {
 	nic_net_init(id);
 	pthread_t thread_id;
     pthread_create(&thread_id, NULL, pingForever, NULL);
+	return 0;
+}
+
+/**
+ * do nothing
+ */ 
+void routerMessageReceived(uint8_t* message, int appID) {
+   
+}
+
+int main() {
+
+	//get unique id
+	printf("Enter unique identifier (0-255): ");
+	char input[4];
+	fgets(input,3,stdin);
+
+	runServer(atoi(input), routerMessageReceived);
+
 	return 0;
 }
