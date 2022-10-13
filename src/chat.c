@@ -51,6 +51,10 @@ int main()
                 if (pollfds[0].revents & POLLIN) {
                     uint8_t buf[SIZE+5]; //enough for app id + max msg
                     int bufSize = read(pollfds[0].fd, buf, SIZE + 5);
+                    if (bufSize == -1 | bufSize ==0) {
+                        printf("Connection to server lost. Exiting.\n");
+                        return 1;
+                    }
 		            printf("Received from server: %s\n",&buf[6]);
                 }
             }
@@ -73,18 +77,6 @@ int main()
 		buf[5]='w';
 		buf[6]='\0';
 		write(client_socket, buf, 7);
-
-           /* printf("Destination ID: \n");
-            char destString[4];
-            fgets(destString,4,stdin);
-            uint8_t destID = atoi(destString);
-            printf("Message: \n");
-            fgets(&buf[2],SIZE-2,stdin); //will this yell at us? lets find out.
-            buf[0] = destID;
-            buf[1] = APP_ID;
-	    printf("Sending: %s \n", &buf[2]);
-            write(client_socket, buf, SIZE);
-            printf("\n");*/
         }
     }
     
