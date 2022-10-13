@@ -149,6 +149,7 @@ void receiveMessage(uint8_t* message, int port) {
 	uint8_t tableChanged = 0;
 
 	struct timespec time;
+	int matchFound = 0;
 	switch (msgType){
 		case 'p':
 			printf("Received ping!\n");
@@ -158,7 +159,6 @@ void receiveMessage(uint8_t* message, int port) {
 			pthread_mutex_lock(&lock);
 			neighborTable[1][port] = time.tv_sec;
 			neighborTable[0][port] = senderID;
-			int matchFound = 0;
 			for (int j=0;j<rtHeight;j++) {
 				if (senderID==routeTable[0][j]) {
 					//we have this id in our datatable
@@ -191,7 +191,6 @@ void receiveMessage(uint8_t* message, int port) {
 			neighborTable[1][port] = time.tv_sec;
 
 			//set routing table
-			int matchFound = 0;
 			for (int j=0;j<rtHeight;j++) {
 				if (senderID==routeTable[0][j]) {
 					//we have this id in our datatable
