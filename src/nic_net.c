@@ -355,25 +355,30 @@ void checkNeighbors() {
 }
 
 /**
+ * Run pings
+ * Called by runServer
+*/
+void* pingForever() {
+	while (1) {
+		sleep(10); //less than ideal, msgs can only go out every sec.
+		numPings++;
+		ping();
+		if(numPings==3) {
+			numPings=0;
+			checkNeighbors();
+		}
+	}
+}
+
+/**
 * Do server setup then infinitely loop, pinging and checking neighbors
-* Should run in a seperate thread, will never complete.
+* Will start up a seperate thread, which will never complete.
 */
 int runServer(int id, call_back routerMessageReceived) {
 	messageReceived = routerMessageReceived;
 	nic_net_init(id);
 	int numPings = 0;
-	if(!fork()) {
-		while (1) {
-			sleep(10); //less than ideal, msgs can only go out every sec.
-			numPings++;
-			ping();
-			if(numPings==3) {
-				numPings=0;
-				checkNeighbors();
-			}
-		}
-	}
-	else {
-		return 0;
-	}
+	pthread_t thread_id;
+    pthread_create(&thread_id, NULL, pingForever, NULL);
+	return 0;
 }
