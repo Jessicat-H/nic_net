@@ -51,7 +51,7 @@ int main()
                 if (pollfds[0].revents & POLLIN) {
                     uint8_t buf[SIZE+5]; //enough for app id + max msg
                     int bufSize = read(pollfds[0].fd, buf, SIZE + 5);
-                    if (bufSize == -1 | bufSize ==0) {
+                    if (bufSize == -1) | (bufSize ==0) {
                         printf("Connection to server lost. Exiting.\n");
                         return 1;
                     }

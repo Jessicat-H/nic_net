@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "nic_net.h"
+#include <pthread.h>
 
 #define MAX_NET_SIZE 18
 
@@ -327,7 +328,7 @@ void nic_net_init(int id) {
 
 	 if (pthread_mutex_init(&lock, NULL) != 0) {
         printf("\n mutex init has failed\n");
-        return 1;
+        return;
     }
 	
 	newHere();
@@ -376,6 +377,7 @@ void checkNeighbors() {
  * Called by runServer
 */
 void* pingForever() {
+	int numPings = 0;
 	while (1) {
 		sleep(10); //less than ideal, msgs can only go out every sec.
 		numPings++;
@@ -394,7 +396,6 @@ void* pingForever() {
 int runServer(int id, call_back routerMessageReceived) {
 	messageReceived = routerMessageReceived;
 	nic_net_init(id);
-	int numPings = 0;
 	pthread_t thread_id;
     pthread_create(&thread_id, NULL, pingForever, NULL);
 	return 0;
