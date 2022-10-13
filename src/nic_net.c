@@ -124,8 +124,11 @@ void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 		output[i+4] = msg[i];
 	}
 	printf("the message: %s\n", &msg[1]);
-	printf("Sending to port: %d\n", whatPort(destID));
-	sendMessage(whatPort(destID),output, length+4);
+	int port = whatPort(destID);
+	if (port < 4) {
+		printf("Sending to port: %d\n", port);
+		sendMessage(whatPort(destID),output, length+4);
+	}
 	free(output);
 }
 
@@ -188,12 +191,26 @@ void receiveMessage(uint8_t* message, int port) {
 			neighborTable[1][port] = time.tv_sec;
 
 			//set routing table
-			routeTable[0][rtHeight] = senderID;
-			routeTable[1][rtHeight] = senderID; //our neighbor
-			routeTable[2][rtHeight] = 1;
-			rtHeight++;
+			int matchFound = 0;
+			for (int j=0;j<rtHeight;j++) {
+				if (senderID==routeTable[0][j]) {
+					//we have this id in our datatable
+					if (routeTable[1][j] != senderID) {
+						routeTable[1][j] = senderID;
+						routeTable[2][j] = 1;
+						tableChanged=1;
+					}
+					matchFound = 1;
+				}
+			}
+			if ((!matchFound) && (senderID!=myID) ) {
+				routeTable[0][rtHeight] =senderID;
+				routeTable[1][rtHeight] =senderID;
+				routeTable[2][rtHeight] =1;
+				rtHeight++;
+				tableChanged=1;
+			}
 			pthread_mutex_unlock(&lock);
-			tableChanged = 1;
 			//send them our data table
 			break;
 
