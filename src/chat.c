@@ -77,7 +77,7 @@ int main()
             buf[0] = destID;
             buf[1] = APP_ID;
 	        printf("Sending: %s \n", &buf[2]);
-            write(client_socket, buf, SIZE);
+            write(client_socket, buf, strlen(buf)+1);
             printf("\n");
         }
     }
