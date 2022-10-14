@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
                                     output[g-1] = buf[g];
                                 }
 
-                                for(int i=0;i<bufSize;i++){
+                                for(int i=0;i<msgLength;i++){
                                     printf("%d ",output[i]);
                                 }
                                 printf("\n");
