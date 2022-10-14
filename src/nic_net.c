@@ -123,9 +123,9 @@ void sendAppMsg(uint8_t* msg, int length, uint8_t destID) {
 	for (int i=0; i<length; i++) {
 		output[i+4] = msg[i];
 	}
-	printf("the message: %s\n", &msg[1]);
+	printf("the message: %s\nthe output:\n", &msg[1]);
 	for(int i=0;i<length+4;i++){
-		printf("%d ",msg[i]);
+		printf("%d ",output[i]);
 	}
 	printf("\n");
 	int port = whatPort(destID);

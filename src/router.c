@@ -125,11 +125,11 @@ int main(int argc, char** argv) {
                             else { //not first msg
                                 uint8_t dest = buf[0];
                                 uint8_t appID = buf[1];
-                                uint8_t msgLength = bufSize - 2;
+                                uint8_t msgLength = bufSize - 1;
 
 				    printf("Dest: %d;  AppID: %d;  msg:%s\n", dest, appID, &buf[2]);
                                 uint8_t output[SIZE];
-                                for (int g=1; g<msgLength; g++) {
+                                for (int g=1; g<message; g++) {
                                     output[g-1] = buf[g];
                                 }
 
