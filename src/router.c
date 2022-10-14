@@ -22,6 +22,10 @@ void routerMessageReceived(uint8_t* message, int appID) {
     // get entire header
     for (int i=0; i<numClients; i++) {
         if (appIDTable[i][0]==appID) {
+            for(int i=0;i<message[0]+1;i++){
+                printf("%d ",message[i]);
+            }
+            printf("\n");
             write(appIDTable[i][1], message, message[0]+1);
             break;
         }
@@ -94,7 +98,6 @@ int main(int argc, char** argv) {
                 }
                 for (int i =1; i < numClients + 1; i++) {
                     if (pollfds[i].fd > 0 && pollfds[i].revents & POLLIN) {
-			    printf("something changed in watched fd %d \n", pollfds[i].fd);
                         uint8_t buf[SIZE]; //enough for app id + max msg
                         int bufSize = read(pollfds[i].fd, buf, SIZE - 1);
                         if (bufSize == -1 || bufSize == 0) {
@@ -129,6 +132,12 @@ int main(int argc, char** argv) {
                                 for (int g=1; g<msgLength; g++) {
                                     output[g-1] = buf[g];
                                 }
+
+                                for(int i=0;i<bufSize;i++){
+                                    printf("%d ",output[i]);
+                                }
+                                printf("\n");
+
                                 sendAppMsg(output, bufSize-1, dest);
                             }
                         }
