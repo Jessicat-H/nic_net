@@ -207,8 +207,9 @@ void receiveMessage(uint8_t* message, int port) {
 				routeTable[1][rtHeight] =senderID;
 				routeTable[2][rtHeight] =1;
 				rtHeight++;
-				tableChanged=1;
 			}
+			// send out the routing table just in case "new" neighbor doesn't have it
+			tableChanged=1;
 			pthread_mutex_unlock(&lock);
 			//send them our data table
 			break;
