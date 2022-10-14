@@ -69,8 +69,8 @@ int main()
         while (1)
         {
 		printf("Destination ID: \n");
-            char destString[4];
-            fgets(destString,4,stdin);
+            char destString[5];
+            fgets(destString,5,stdin);
             uint8_t destID = atoi(destString);
             printf("Message: \n");
             fgets(&buf[2],SIZE-2,stdin); //will this yell at us? lets find out.
