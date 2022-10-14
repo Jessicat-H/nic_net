@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
 
 				    printf("Dest: %d;  AppID: %d;  msg:%s\n", dest, appID, &buf[2]);
                                 uint8_t output[SIZE];
-                                for (int g=1; g<message; g++) {
+                                for (int g=1; g<bufSize; g++) {
                                     output[g-1] = buf[g];
                                 }
 
@@ -138,7 +138,7 @@ int main(int argc, char** argv) {
                                 }
                                 printf("\n");
 
-                                sendAppMsg(output, bufSize-1, dest);
+                                sendAppMsg(output, msgLength, dest);
                             }
                         }
                     }
