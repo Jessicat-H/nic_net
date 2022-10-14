@@ -401,15 +401,6 @@ void* pingForever() {
 			numPings=0;
 			checkNeighbors();
 		}
-		sleep(5);
-		for (int i=0; i<rtHeight; i++) {
-			if (routeTable[0][i]) {
-				uint8_t testMsg[2];
-				testMsg[0] = 'h';
-				testMsg[1] = 'i';
-				sendAppMsg(&testMsg[0],2,routeTable[0][i]);
-			}
-		}
 	}
 }
 
@@ -425,14 +416,7 @@ int runServer(int id, call_back routerMessageReceived) {
 	return 0;
 }
 
-/**
- * do nothing
- */ 
-void routerMessageReceived(uint8_t* message, int appID) {
-   
-}
-
-int main() {
+/*int main() {
 
 	//get unique id
 	printf("Enter unique identifier (0-255): ");
@@ -440,6 +424,7 @@ int main() {
 	fgets(input,3,stdin);
 
 	runServer(atoi(input), routerMessageReceived);
+    while(1) {}
 
 	return 0;
-}
+}*/
