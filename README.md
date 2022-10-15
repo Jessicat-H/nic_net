@@ -15,6 +15,8 @@ bash library_script.sh
   
 Every node on the network must have a unique ID.
 
+To write a networked application, include [nic_app](https://github.com/tonydoesathing/nic_app) and use the exposed functions. Note: the router must be running on the computer in order to make network calls.
+
 ## Physical setup
 The code is intended to work on any number of nodes up to 18. To connect a node to the network, connect the xmit and recv ports on one port to an open recv and xmit (respectively) on an open port on a Pi that is already in the network, then run the executable. There is currently no command-line interface, but the nodes will send each other pings and the code can be changed to transmit messages between nodes.
 
