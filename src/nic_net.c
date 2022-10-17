@@ -232,7 +232,6 @@ void receiveMessage(uint8_t *message, int port)
 		for (int i = 5; i < numBytes; i += 3)
 		{
 			uint8_t id = message[i];
-			uint8_t next = message[i + 1];
 			uint8_t hops = message[i + 2]; // hops to our neighbor, add 1 for us.
 			uint8_t matchFound = 0;
 			pthread_mutex_lock(&lock);

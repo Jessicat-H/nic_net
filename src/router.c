@@ -98,7 +98,6 @@ int main(int argc, char **argv)
                 numClients++;
                 pollfds[numClients].fd = clientSock;
                 pollfds[numClients].events = POLLIN | POLLPRI;
-                appIDTable[numClients][1] = clientSock;
             }
             for (int i = 1; i < numClients + 1; i++)
             {
@@ -134,7 +133,6 @@ int main(int argc, char **argv)
                         else
                         { // not first msg
                             uint8_t dest = buf[0];
-                            uint8_t appID = buf[1];
                             uint8_t msgLength = bufSize - 1;
                             uint8_t output[SIZE];
                             for (int g = 1; g < bufSize; g++)
