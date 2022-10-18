@@ -20,6 +20,13 @@ To write a networked application, include [nic_app](https://github.com/tonydoesa
 ## Physical setup
 The code is intended to work on any number of nodes up to 18. To connect a node to the network, connect the xmit and recv ports on one port to an open recv and xmit (respectively) on an open port on a Pi that is already in the network, then run the executable. There is currently no command-line interface, but the nodes will send each other pings and the code can be changed to transmit messages between nodes.
 
+## Message setup
+Each message header looks like the following, with each section being a byte long: 
+
+`| total length (not including the length) | source ID | number of hops so far | destination ID | message type |`
+
+Note, of course, that the link layer tacks on 2 synchronization bits before every message.
+
 ## Authors
 The following code was written by [Jessica Hannebert](https://github.com/Jessicat-H), [Dylan Chapell](https://github.com/dylanchapell), and [Tony Mastromarino](https://github.com/tonydoesathing). 
 
